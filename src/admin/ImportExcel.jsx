@@ -95,7 +95,7 @@ export default function ImportExcel({ secret, onImported }) {
 
         <div className="admin-import-section">
           <h3>2. Select Excel File</h3>
-          <p>Upload an Excel file with columns: <code>Product_Name</code>, <code>Product_Name_M</code>, <code>Price</code>, <code>Price_M</code>, <code>Sort_Order</code>.</p>
+          <p>Upload an Excel file with columns: <code>Product_Name</code>, <code>Price</code>, <code>Sort_Order</code>.</p>
 
           <div className="admin-import-upload">
             <input
@@ -211,9 +211,7 @@ export default function ImportExcel({ secret, onImported }) {
             </thead>
             <tbody>
               <tr><td><code>Product_Name</code></td><td>✅ Yes</td><td>Product name in English</td></tr>
-              <tr><td><code>Product_Name_M</code></td><td>Optional</td><td>Product name in Marathi</td></tr>
               <tr><td><code>Price</code></td><td>✅ Yes</td><td>Product price (number)</td></tr>
-              <tr><td><code>Price_M</code></td><td>Optional</td><td>Price in Marathi</td></tr>
               <tr><td><code>Sort_Order</code></td><td>Optional</td><td>Display order (lower = first)</td></tr>
             </tbody>
           </table>

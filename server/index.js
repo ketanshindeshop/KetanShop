@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
 import { query, getDb, imageToBase64, MIME_MAP, ALLOWED_IMAGE_EXTS } from './db.js';
+import { toMarathi } from '../src/utils/transliterate.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const upload = multer({
@@ -49,7 +50,7 @@ app.get('/api/products', async (req, res) => {
     const params = [];
 
     if (search) {
-      conditions.push('(product_name LIKE ? OR product_name_m LIKE ?)');
+      conditions.push('(product_name LIKE ? OR product_name_mr LIKE ?)');
       params.push(`%${search}%`, `%${search}%`);
     }
     if (category && category !== 'all') {
@@ -74,7 +75,7 @@ app.get('/api/products', async (req, res) => {
     const safeSort = allowedSorts.includes(sort) ? sort : 'sort_order';
     const safeDir = dir === 'desc' ? 'DESC' : 'ASC';
 
-    const sql = `SELECT id, product_name, product_name_m, price, price_m, image_path, category, availability, sort_order, created_at, updated_at FROM products ${where} ORDER BY ${safeSort} ${safeDir}`;
+    const sql = `SELECT id, product_name, product_name_mr, price, image_path, category, availability, sort_order, created_at, updated_at FROM products ${where} ORDER BY ${safeSort} ${safeDir}`;
     const result = await query(sql, params);
 
     // For categories, show all categories when admin fetches all
@@ -131,15 +132,17 @@ app.get('/api/products/:id/image', async (req, res) => {
 // POST /api/admin/products - Create a product
 app.post('/api/admin/products', requireAdmin, async (req, res) => {
   try {
-    const { product_name, product_name_m, price, price_m, category, image_path, image_data, image_type, availability, sort_order } = req.body;
+    const { product_name, product_name_mr, price, category, image_path, image_data, image_type, availability, sort_order } = req.body;
     if (!product_name) {
       return res.status(400).json({ success: false, error: 'Product name is required' });
     }
+    // Use admin-provided Marathi name, or auto-generate from English name
+    const finalProductNameMr = (product_name_mr && product_name_mr.trim()) ? product_name_mr.trim() : (toMarathi(product_name, 'mr') || '');
     const result = await getDb().execute({
-      sql: `INSERT INTO products (product_name, product_name_m, price, price_m, category, image_path, image_data, image_type, availability, sort_order)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO products (product_name, product_name_mr, price, category, image_path, image_data, image_type, availability, sort_order)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
-        product_name, product_name_m || '', Number(price) || 0, String(price_m || price || ''),
+        product_name, finalProductNameMr, Number(price) || 0,
         category || 'Groceries', image_path || '', image_data || null, image_type || null,
         availability || 'yes', Number(sort_order) || 0,
       ],
@@ -154,15 +157,26 @@ app.post('/api/admin/products', requireAdmin, async (req, res) => {
 app.put('/api/admin/products/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { product_name, product_name_m, price, price_m, category, image_path, image_data, image_type, availability, sort_order } = req.body;
+    const { product_name, product_name_mr, price, category, image_path, image_data, image_type, availability, sort_order } = req.body;
 
     // Build SET clause dynamically (only update provided fields)
     const updates = [];
     const values = [];
-    if (product_name !== undefined) { updates.push('product_name = ?'); values.push(product_name); }
-    if (product_name_m !== undefined) { updates.push('product_name_m = ?'); values.push(product_name_m); }
+    if (product_name !== undefined) {
+      updates.push('product_name = ?');
+      values.push(product_name);
+    }
+    // Determine Marathi name: explicit value > auto-generate from English > unchanged
+    if (product_name_mr !== undefined && product_name_mr !== '') {
+      // Admin explicitly provided a Marathi name
+      updates.push('product_name_mr = ?');
+      values.push(product_name_mr);
+    } else if (product_name !== undefined) {
+      // Product name changed but no Marathi name given — auto-generate
+      updates.push('product_name_mr = ?');
+      values.push(toMarathi(product_name, 'mr') || '');
+    }
     if (price !== undefined) { updates.push('price = ?'); values.push(Number(price)); }
-    if (price_m !== undefined) { updates.push('price_m = ?'); values.push(String(price_m)); }
     if (category !== undefined) { updates.push('category = ?'); values.push(category); }
     if (image_path !== undefined) { updates.push('image_path = ?'); values.push(image_path); }
     if (image_data !== undefined) { updates.push('image_data = ?'); values.push(image_data || null); }
@@ -287,11 +301,12 @@ app.post('/api/admin/products/import-excel', requireAdmin, upload.fields([
         }
       }
 
+      const productNameMr = toMarathi(productName, 'mr') || '';
       await db.execute({
-        sql: `INSERT INTO products (product_name, product_name_m, price, price_m, category, image_path, image_data, image_type, availability, sort_order)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        sql: `INSERT INTO products (product_name, product_name_mr, price, category, image_path, image_data, image_type, availability, sort_order)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
-          productName, row.Product_Name_M || '', price, String(row.Price_M || price),
+          productName, productNameMr, price,
           category, imagePath, imageData, imageType, 'yes', Number(row.Sort_Order) || 0,
         ],
       });
@@ -309,7 +324,7 @@ app.get('/api/admin/sample-excel', async (req, res) => {
   try {
     const wb = XLSX.utils.book_new();
     const data = [
-      { Product_Name: 'Sample Product', Product_Name_M: 'नमुना उत्पादन', Price: 100, Price_M: 100, Sort_Order: 1 },
+      { Product_Name: 'Sample Product', Price: 100, Sort_Order: 1 },
     ];
     const ws = XLSX.utils.json_to_sheet(data);
     XLSX.utils.book_append_sheet(wb, ws, 'Products');

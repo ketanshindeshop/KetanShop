@@ -86,6 +86,7 @@ export default function AdminDashboard({ secret, refreshKey, onRefresh }) {
                 <th>ID</th>
                 <th>Image</th>
                 <th>Product Name</th>
+                <th>Marathi Name</th>
                 <th>Category</th>
                 <th>Price</th>
                 <th>Availability</th>
@@ -95,7 +96,7 @@ export default function AdminDashboard({ secret, refreshKey, onRefresh }) {
             <tbody>
               {products.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="admin-empty">No products found</td>
+                  <td colSpan="8" className="admin-empty">No products found</td>
                 </tr>
               ) : (
                 products.map((p) => (
@@ -109,7 +110,9 @@ export default function AdminDashboard({ secret, refreshKey, onRefresh }) {
                     </td>
                     <td className="admin-name-cell">
                       <strong>{p.product_name}</strong>
-                      {p.product_name_m && <span className="admin-name-mr">{p.product_name_m}</span>}
+                    </td>
+                    <td className="admin-name-cell">
+                      <span className="admin-name-mr">{p.product_name_mr || '—'}</span>
                     </td>
                     <td><span className="admin-cat-tag">{p.category}</span></td>
                     <td>₹{Number(p.price).toLocaleString('en-IN')}</td>

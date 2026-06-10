@@ -77,6 +77,7 @@ function MainShop() {
           <div className="content-layout">
             <aside className="sidebar">
               <FilterSidebar
+                lang={lang}
                 categories={categories}
                 selectedCategory={category}
                 setCategory={setCategory}

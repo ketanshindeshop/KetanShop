@@ -63,4 +63,5 @@ export function imageToBase64(imagePath) {
 export const DB_MIGRATIONS = [
   `ALTER TABLE products ADD COLUMN image_data TEXT DEFAULT NULL`,
   `ALTER TABLE products ADD COLUMN image_type TEXT DEFAULT NULL`,
+  `ALTER TABLE products ADD COLUMN product_name_mr TEXT DEFAULT ''`,
 ];

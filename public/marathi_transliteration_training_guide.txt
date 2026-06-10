@@ -1,0 +1,209 @@
+Marathi Transliteration AI Training Dataset Guide
+
+Objective
+
+Convert Romanized Marathi (English letters) into correct Marathi
+Devanagari script.
+
+Examples: namaskar -> नमस्कार maharashtra -> महाराष्ट्र nashik -> नाशिक
+shengadanyachi chikki -> शेंगदाण्याची चिक्की
+
+Training Rules
+
+1.  Convert pronunciation, not literal letters.
+2.  Output only Marathi text.
+3.  Do not translate meanings.
+4.  Preserve punctuation and numbers.
+5.  Support alternate spellings.
+
+Vowels
+
+a -> अ aa -> आ i -> इ ii -> ई u -> उ uu -> ऊ e -> ए ai -> ऐ o -> ओ au ->
+औ am -> अं ah -> अः
+
+Consonants
+
+ka -> क kha -> ख ga -> ग gha -> घ nga -> ङ
+
+cha -> च chha -> छ ja -> ज jha -> झ nya -> ञ
+
+ta -> ट tha -> ठ da -> ड dha -> ढ na -> ण
+
+t -> त th -> थ d -> द dh -> ध n -> न
+
+pa -> प pha -> फ ba -> ब bha -> भ ma -> म
+
+ya -> य ra -> र la -> ल va -> व
+
+sha -> श ssa -> ष sa -> स ha -> ह
+
+Compound Characters
+
+ksha -> क्ष tra -> त्र gya -> ज्ञ jnya -> ज्ञ shra -> श्र
+
+Common Words
+
+aai -> आई baba -> बाबा ghar -> घर gaav -> गाव paani -> पाणी mulga ->
+मुलगा mulgi -> मुलगी shala -> शाळा pustak -> पुस्तक shetkari -> शेतकरी
+maharashtra -> महाराष्ट्र marathi -> मराठी nashik -> नाशिक pune -> पुणे
+mumbai -> मुंबई kolhapur -> कोल्हापूर nagpur -> नागपूर
+
+Food Vocabulary
+
+shengadana -> शेंगदाणा chikki -> चिक्की gul -> गूळ pohe -> पोहे bhakari ->
+भाकरी pithla -> पिठलं misal -> मिसळ vadapav -> वडापाव modak -> मोदक ladoo
+-> लाडू chakli -> चकली karanji -> करंजी
+
+Alternate Spellings
+
+maharashtra -> महाराष्ट्र maharastra -> महाराष्ट्र
+
+namaskar -> नमस्कार namaskaar -> नमस्कार
+
+nashik -> नाशिक nasik -> नाशिक
+
+shengadana -> शेंगदाणा shengdana -> शेंगदाणा
+
+Sample Sentences
+
+majha nav swaroop aahe -> माझं नाव स्वरूप आहे mi maharashtrat rahto -> मी
+महाराष्ट्रात राहतो tumhi kase aahat -> तुम्ही कसे आहात shubh sakal -> शुभ सकाळ
+dhanyavaad -> धन्यवाद krupaya -> कृपया
+
+Recommended Dataset Size
+
+Minimum: 10,000 pairs Good: 50,000 pairs Excellent: 100,000+ pairs
+
+Include: - Names - Cities - Villages - Surnames - Food items -
+Festivals - Daily conversations - Product names - Marathi grammar
+variations
+
+
+Character Coverage Dataset
+
+Your dataset should cover every Marathi sound pattern.
+
+Vowels
+Roman	Marathi
+a	अ
+aa	आ
+i	इ
+ii	ई
+u	उ
+uu	ऊ
+e	ए
+ai	ऐ
+o	ओ
+au	औ
+am	अं
+ah	अः
+Consonants
+Roman	Marathi
+ka	क
+kha	ख
+ga	ग
+gha	घ
+nga	ङ
+cha	च
+chha	छ
+ja	ज
+jha	झ
+nya	ञ
+ta	ट
+tha	ठ
+da	ड
+dha	ढ
+na	ण
+t	त
+th	थ
+d	द
+dh	ध
+n	न
+pa	प
+pha	फ
+ba	ब
+bha	भ
+ma	म
+ya	य
+ra	र
+la	ल
+va	व
+sha	श
+ssa	ष
+sa	स
+ha	ह
+Compound Characters
+Roman	Marathi
+ksha	क्ष
+tra	त्र
+gya	ज्ञ
+jnya	ज्ञ
+shra	श्र
+Common Marathi Words
+
+Train heavily on:
+
+aai → आई
+baba → बाबा
+ghar → घर
+gaav → गाव
+paani → पाणी
+mulga → मुलगा
+mulgi → मुलगी
+shala → शाळा
+pustak → पुस्तक
+shetkari → शेतकरी
+shet → शेत
+maharashtra → महाराष्ट्र
+marathi → मराठी
+nashik → नाशिक
+pune → पुणे
+mumbai → मुंबई
+kolhapur → कोल्हापूर
+nagpur → नागपूर
+Food Vocabulary
+shengadana → शेंगदाणा
+chikki → चिक्की
+gul → गूळ
+pohe → पोहे
+bhakari → भाकरी
+pithla → पिठलं
+misal → मिसळ
+vadapav → वडापाव
+modak → मोदक
+ladoo → लाडू
+chakli → चकली
+karanji → करंजी
+Alternate Spellings
+
+Teach multiple valid inputs:
+
+maharashtra → महाराष्ट्र
+maharastra → महाराष्ट्र
+
+namaskar → नमस्कार
+namaskaar → नमस्कार
+
+nashik → नाशिक
+nasik → नाशिक
+
+shengadana → शेंगदाणा
+shengdana → शेंगदाणा
+Recommended Dataset Size
+Minimum: 10,000 pairs
+Good: 50,000 pairs
+Excellent: 100,000+ pairs
+
+Include:
+
+Names
+Cities
+Villages
+Surnames
+Food items
+Festivals
+Daily conversations
+Product names
+Marathi grammar variations
+
+Most accuracy gains come from large, diverse word pairs, not from manually mapping every individual character. For best results, train on complete words and sentences covering all Marathi sounds and spelling patterns.

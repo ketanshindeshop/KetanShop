@@ -1,10 +1,13 @@
 import React, { useState } from 'react'
 import { toMarathiNumerals } from '../utils/format'
+import { toMarathi } from '../utils/transliterate'
 
 export default function ProductCard({ product, lang, t }) {
   const [imgError, setImgError] = useState(false)
-  const name = lang === 'mr' && product.product_name_m ? product.product_name_m : product.product_name
-  const priceDisplay = lang === 'mr' && product.price_m ? product.price_m : product.price
+  // Prefer the database-stored Marathi name; fall back to client-side transliteration
+  const name = lang === 'mr' && product.product_name_mr
+    ? product.product_name_mr
+    : toMarathi(product.product_name, lang)
 
   // Use the API endpoint to fetch image from DB. Falls back gracefully on error.
   // Cache-bust with updated_at so new images show immediately after product updates
@@ -38,7 +41,7 @@ export default function ProductCard({ product, lang, t }) {
 
         <div className="product-price-row">
           <span className="product-price">
-            {t('currency')}{toMarathiNumerals(Number(priceDisplay).toLocaleString('en-IN'), lang)}
+            {t('currency')}{toMarathiNumerals(Number(product.price).toLocaleString('en-IN'), lang)}
           </span>
         </div>
 

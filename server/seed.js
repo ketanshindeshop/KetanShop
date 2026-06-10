@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'fs';
 import XLSX from 'xlsx';
 import { getDb, imageToBase64, DB_MIGRATIONS } from './db.js';
+import { toMarathi } from '../src/utils/transliterate.js';
 import 'dotenv/config';
 
 async function seed() {
@@ -46,9 +47,7 @@ async function seed() {
   let count = 0;
   for (const row of rows) {
     const productName = row.Product_Name || '';
-    const productNameM = row.Product_Name_M || '';
     const price = Number(row.Price) || 0;
-    const priceM = String(row.Price_M || price);
     // Auto-generate image path from product name if Excel has 'TBC' or empty
     let imagePath = row.Image_Path || '';
     const tbcValues = ['tbc', 'tbd', 'n/a', 'na', ''];
@@ -107,11 +106,12 @@ async function seed() {
     }
 
     try {
+      const productNameMr = toMarathi(productName, 'mr') || '';
       await db.execute({
         sql: `INSERT OR REPLACE INTO products 
-          (product_name, product_name_m, price, price_m, image_path, image_data, image_type, category, availability, sort_order)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        args: [productName, productNameM, price, priceM, imagePath, imageData, imageType, category, availability, sortOrder],
+          (product_name, product_name_mr, price, image_path, image_data, image_type, category, availability, sort_order)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [productName, productNameMr, price, imagePath, imageData, imageType, category, availability, sortOrder],
       });
       count++;
     } catch (err) {

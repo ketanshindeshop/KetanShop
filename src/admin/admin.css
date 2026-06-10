@@ -348,9 +348,9 @@
 
 .admin-name-mr {
   display: block;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   color: #6c6c80;
-  margin-top: 2px;
+  font-weight: 500;
 }
 
 .admin-cat-tag {

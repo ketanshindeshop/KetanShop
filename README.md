@@ -19,6 +19,7 @@ An Indian grocery e-commerce website built with **React + Vite** (frontend) and 
 - [Deployment](#-deployment)
 - [Scripts Reference](#-scripts-reference)
 - [Environment Variables](#-environment-variables)
+- [Marathi Transliteration](#-marathi-transliteration)
 
 ---
 
@@ -72,7 +73,8 @@ ShriramTraders/
 │   ├── index.css                 # Global CSS (shop styling)
 │   │
 │   ├── utils/
-│   │   └── format.js             # Number formatting — Marathi numeral conversion
+│   │   ├── format.js             # Number formatting — Marathi numeral conversion
+│   │   └── transliterate.js      # English → Marathi Devanagari transliteration engine
 │   │
 │   ├── components/
 │   │   ├── Header.jsx            # Nav bar + language toggle + admin link
@@ -184,9 +186,8 @@ npm run dev:all
 CREATE TABLE products (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     product_name    TEXT    NOT NULL,        -- English name
-    product_name_m  TEXT    DEFAULT '',      -- Marathi name
+    product_name_mr TEXT    DEFAULT '',      -- Marathi name (auto-generated via transliteration)
     price           REAL    NOT NULL DEFAULT 0,
-    price_m         TEXT    DEFAULT '',      -- Marathi price display
     image_path      TEXT    DEFAULT '',      -- e.g. /product_images/xyz.jpeg (for reference only)
     image_data      TEXT    DEFAULT NULL,    -- Base64-encoded image data (stored in DB)
     image_type      TEXT    DEFAULT NULL,    -- MIME type: image/jpeg, image/png, etc.
@@ -225,7 +226,7 @@ CREATE TABLE products (
 
 | Param | Type | Default | Description |
 |-------|------|---------|-------------|
-| `search` | string | `''` | Search product_name / product_name_m |
+| `search` | string | `''` | Search product_name / product_name_mr |
 | `category` | string | `'all'` | Filter by category |
 | `minPrice` | number | `''` | Minimum price |
 | `maxPrice` | number | `''` | Maximum price |
@@ -275,7 +276,7 @@ Frontend (AdminPage.jsx)
 1. **Toggle button** at the top-right switches between **EN** and **मराठी**
 2. Preference saved to `localStorage` (persists across sessions)
 3. All UI text loads from `src/translations/index.js`
-4. Product names and prices use the `product_name_m` / `price_m` fields when available in Marathi mode
+4. **Product names auto-transliterate:** When Marathi mode is active, product names are automatically converted from English to Devanagari script using a rule-based transliteration engine with a lookup table for known words. If a `product_name_mr` is stored in the database (e.g., set via admin form), that takes priority.
 5. **Numerals auto-convert:** Prices and product counts are automatically displayed using Marathi digits (०, १, २, etc.) when Marathi is selected, via the `toMarathiNumerals()` utility in `src/utils/format.js`
 
 ### Adding a New Translation
@@ -349,10 +350,10 @@ If no image is stored in the database or the image fails to load, a placeholder 
 | Column | Required | Description |
 |--------|----------|-------------|
 | `Product_Name` | ✅ Yes | Product name in English |
-| `Product_Name_M` | Optional | Product name in Marathi |
 | `Price` | ✅ Yes | Product price (number) |
-| `Price_M` | Optional | Price display in Marathi |
 | `Sort_Order` | Optional | Display order (lower = first) |
+
+> **Marathi names** are auto-generated from the English name via server-side transliteration. To override, edit the product in the admin panel and set a custom Marathi name.
 
 ### Import via Admin Panel
 
@@ -430,6 +431,28 @@ VITE_ADMIN_SECRET=ketan123   # Frontend admin password (VITE_ prefix for Vite)
 ```
 
 > **Security:** The `.env` file is in `.gitignore` and will NOT be committed to version control. On Vercel/Netlify, add these as environment variables in the dashboard.
+
+---
+
+## 🌐 Marathi Transliteration
+
+The `src/utils/transliterate.js` module provides an English-to-Marathi (Devanagari) conversion engine:
+
+- **Lookup table (WORD_MAP):** Known words and common product names are mapped directly to their Marathi equivalents (e.g., `"chikki"` → `"चिक्की"`, `"basmati"` → `"बासमती"`)
+- **Rule-based engine:** Unknown words are transliterated character-by-character using consonant and vowel mappings
+- **Anusvara support:** Handles the nasalization mark (ं) when 'n' or 'm' precedes a consonant
+- **Fallback:** When Marathi mode is selected but no Marathi name exists, it auto-converts from English
+
+### Adding Words to the Lookup Table
+
+Edit `src/utils/transliterate.js` and add entries to the `WORD_MAP` object:
+
+```js
+const WORD_MAP = {
+  'new product': 'नवीन उत्पादन',
+  // ...
+}
+```
 
 ---
 

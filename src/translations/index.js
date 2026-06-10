@@ -92,6 +92,14 @@ const translations = {
     viewDetails: 'तपशील पहा',
     of: 'पैकी',
 
+    // Category Names
+    catGroceries: 'किराणा',
+    catSweets: 'गोडे व स्नॅक्स',
+    catSpices: 'मसाले',
+    catGrains: 'धान्य व तांदूळ',
+    catPickles: 'लोणची व चटण्या',
+    catBeverages: 'पेये',
+
     // Language
     language: 'भाषा',
 

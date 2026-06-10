@@ -5,9 +5,8 @@ export default function ProductForm({ product, secret, onSaved, onCancel }) {
   const fileInputRef = useRef(null)
   const [form, setForm] = useState({
     product_name: product?.product_name || '',
-    product_name_m: product?.product_name_m || '',
+    product_name_mr: product?.product_name_mr || '',
     price: product?.price || '',
-    price_m: product?.price_m || '',
     category: product?.category || 'Groceries',
     image_path: product?.image_path || '',
     availability: product?.availability || 'yes',
@@ -123,10 +122,11 @@ export default function ProductForm({ product, secret, onSaved, onCancel }) {
               <label>Product Name (Marathi)</label>
               <input
                 type="text"
-                value={form.product_name_m}
-                onChange={(e) => handleChange('product_name_m', e.target.value)}
-                placeholder="e.g. काश्मिरी काळा लसूण"
+                value={form.product_name_mr}
+                onChange={(e) => handleChange('product_name_mr', e.target.value)}
+                placeholder="Auto-generated from English name"
               />
+              <p className="admin-form-hint">Auto-generated from English name. Edit to override.</p>
             </div>
           </div>
 
@@ -138,15 +138,6 @@ export default function ProductForm({ product, secret, onSaved, onCancel }) {
                 min="0"
                 value={form.price}
                 onChange={(e) => handleChange('price', e.target.value)}
-                placeholder="e.g. 180"
-              />
-            </div>
-            <div className="admin-form-group">
-              <label>Price (Marathi)</label>
-              <input
-                type="text"
-                value={form.price_m}
-                onChange={(e) => handleChange('price_m', e.target.value)}
                 placeholder="e.g. 180"
               />
             </div>

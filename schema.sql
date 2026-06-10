@@ -1,9 +1,8 @@
 CREATE TABLE IF NOT EXISTS products (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     product_name    TEXT    NOT NULL,
-    product_name_m  TEXT    DEFAULT '',
+    product_name_mr TEXT    DEFAULT '',
     price           REAL    NOT NULL DEFAULT 0,
-    price_m         TEXT    DEFAULT '',
     image_path      TEXT    DEFAULT '',
     image_data      TEXT    DEFAULT NULL,
     image_type      TEXT    DEFAULT NULL,
