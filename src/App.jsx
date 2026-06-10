@@ -63,6 +63,12 @@ function MainShop() {
         lang={lang}
         toggleLang={toggleLang}
         t={t}
+        categories={categories}
+        setCategory={setCategory}
+        minPrice={minPrice}
+        setMinPrice={setMinPrice}
+        maxPrice={maxPrice}
+        setMaxPrice={setMaxPrice}
       />
 
       <main className="main-content">
@@ -73,6 +79,16 @@ function MainShop() {
             setSearch={setSearch}
             t={t}
           />
+
+          {/* Mobile-visible clear filters bar */}
+          {hasActiveFilters && (
+            <div className="clear-filters-bar">
+              <span className="clear-filters-bar-label">{t('filtersApplied')}</span>
+              <button className="clear-filters-bar-btn" onClick={clearFilters}>
+                ✕ {t('clearFilters')}
+              </button>
+            </div>
+          )}
 
           <div className="content-layout">
             <aside className="sidebar">

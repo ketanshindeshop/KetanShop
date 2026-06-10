@@ -166,6 +166,7 @@ export default function ProductForm({ product, secret, onSaved, onCancel }) {
               >
                 <option value="yes">In Stock</option>
                 <option value="no">Out of Stock</option>
+                <option value="disabled">Disabled</option>
               </select>
             </div>
           </div>

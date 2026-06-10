@@ -14,6 +14,16 @@ export default function ProductCard({ product, lang, t }) {
   const imageSrc = product.id ? `/api/products/${product.id}/image?v=${encodeURIComponent(product.updated_at || '0')}` : null
   const showImg = !imgError && product.id
 
+  const availabilityClass =
+    product.availability === 'yes' ? 'in-stock' :
+    product.availability === 'no' ? 'out-stock' :
+    'disabled'
+
+  const availabilityLabel =
+    product.availability === 'yes' ? t('inStock') :
+    product.availability === 'no' ? t('outOfStock') :
+    'Disabled'
+
   return (
     <div className="product-card">
       <div className="product-image-wrapper">
@@ -31,7 +41,7 @@ export default function ProductCard({ product, lang, t }) {
         >
           <span className="product-emoji">🛍️</span>
         </div>
-        {product.availability !== 'yes' && (
+        {product.availability === 'no' && (
           <span className="out-of-stock-badge">{t('outOfStock')}</span>
         )}
       </div>
@@ -45,12 +55,9 @@ export default function ProductCard({ product, lang, t }) {
           </span>
         </div>
 
-        <div className="product-meta">
-          <span className="product-category-tag">{product.category}</span>
-          <span className={`stock-badge ${product.availability === 'yes' ? 'in-stock' : 'out-stock'}`}>
-            {product.availability === 'yes' ? t('inStock') : t('outOfStock')}
-          </span>
-        </div>
+        <span className={`stock-badge ${availabilityClass}`}>
+          {availabilityLabel}
+        </span>
 
       </div>
     </div>

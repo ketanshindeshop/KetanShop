@@ -19,6 +19,7 @@ const translations = {
     maxPrice: 'Max Price',
     apply: 'Apply',
     clearFilters: 'Clear Filters',
+    filtersApplied: 'Filters Applied',
 
     // Products
     productsFound: 'products found',
@@ -74,6 +75,7 @@ const translations = {
     maxPrice: 'कमाल किंमत',
     apply: 'लागू करा',
     clearFilters: 'फिल्टर साफ करा',
+    filtersApplied: 'फिल्टर लागू',
 
     // Products
     productsFound: 'उत्पादने सापडली',

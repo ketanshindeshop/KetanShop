@@ -117,8 +117,8 @@ export default function AdminDashboard({ secret, refreshKey, onRefresh }) {
                     <td><span className="admin-cat-tag">{p.category}</span></td>
                     <td>₹{Number(p.price).toLocaleString('en-IN')}</td>
                     <td>
-                      <span className={`admin-stock ${p.availability === 'yes' ? 'in-stock' : 'out-stock'}`}>
-                        {p.availability === 'yes' ? 'In Stock' : 'Out of Stock'}
+                      <span className={`admin-stock ${p.availability === 'yes' ? 'in-stock' : p.availability === 'no' ? 'out-stock' : 'disabled'}`}>
+                        {p.availability === 'yes' ? 'In Stock' : p.availability === 'no' ? 'Out of Stock' : 'Disabled'}
                       </span>
                     </td>
                     <td className="admin-actions">

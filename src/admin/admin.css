@@ -380,6 +380,11 @@
   background: #fee2e2;
 }
 
+.admin-stock.disabled {
+  color: #6c6c80;
+  background: #e8e6e1;
+}
+
 .admin-actions {
   display: flex;
   gap: 6px;
