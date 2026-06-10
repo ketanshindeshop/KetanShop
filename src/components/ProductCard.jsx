@@ -52,12 +52,6 @@ export default function ProductCard({ product, lang, t }) {
           </span>
         </div>
 
-        <button
-          className={`add-to-cart-btn ${product.availability !== 'yes' ? 'disabled' : ''}`}
-          disabled={product.availability !== 'yes'}
-        >
-          {product.availability === 'yes' ? t('addToCart') : t('outOfStock')}
-        </button>
       </div>
     </div>
   )

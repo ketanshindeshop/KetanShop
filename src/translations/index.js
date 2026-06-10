@@ -30,7 +30,6 @@ const translations = {
     sortName: 'Name',
 
     // Product Card
-    addToCart: 'Add to Cart',
     outOfStock: 'Out of Stock',
     inStock: 'In Stock',
     viewDetails: 'View Details',
@@ -86,7 +85,6 @@ const translations = {
     sortName: 'नाव',
 
     // Product Card
-    addToCart: 'कार्टमध्ये टाका',
     outOfStock: 'स्टॉक संपला',
     inStock: 'स्टॉकमध्ये आहे',
     viewDetails: 'तपशील पहा',
@@ -106,7 +104,7 @@ const translations = {
     // Footer
     footerTagline: 'प्रामाणिक भारतीय किराणा मालासाठी तुमचा विश्वासू स्रोत.',
     followUs: 'आमचे अनुसरण करा',
-    quickLinks: 'द्रुत दुवे',
+    quickLinks: 'Quick Links',
     contactUs: 'आमच्याशी संपर्क साधा',
     owner: 'मालक',
     ownerName: 'केतन शिंदे',
