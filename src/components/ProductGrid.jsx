@@ -1,5 +1,6 @@
 import React from 'react'
 import ProductCard from './ProductCard'
+import { toMarathiNumerals } from '../utils/format'
 
 export default function ProductGrid({
   products,
@@ -31,7 +32,7 @@ export default function ProductGrid({
     <>
       <div className="products-toolbar">
         <p className="products-count">
-          <strong>{products.length}</strong> {t('productsFound')}
+          <strong>{toMarathiNumerals(products.length, lang)}</strong> {t('productsFound')}
         </p>
         <div className="sort-control">
           <label htmlFor="sort">{t('sortBy')}:</label>

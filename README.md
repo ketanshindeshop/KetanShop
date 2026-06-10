@@ -71,6 +71,9 @@ ShriramTraders/
 │   ├── App.jsx                   # Root component with /admin routing
 │   ├── index.css                 # Global CSS (shop styling)
 │   │
+│   ├── utils/
+│   │   └── format.js             # Number formatting — Marathi numeral conversion
+│   │
 │   ├── components/
 │   │   ├── Header.jsx            # Nav bar + language toggle + admin link
 │   │   ├── SearchBar.jsx         # Debounced auto-search input
@@ -150,6 +153,7 @@ npm run dev:all
 | **📂 Category Filter** | Sidebar with clickable category buttons |
 | **💰 Price Filter** | Min/max range inputs with 500ms debounce |
 | **🌐 Language Toggle** | Switch between English (EN) and Marathi (मराठी) at top |
+| **🔢 Marathi Numerals** | Prices and counts automatically convert to Marathi digits (०-९) in Marathi mode |
 | **📱 Responsive** | Mobile-friendly — sidebar collapses, grid adapts |
 | **🔄 Sorting** | Default, Price (Low→High / High→Low), Name |
 | **🏷️ Brand** | Shriram Traders throughout |
@@ -167,6 +171,8 @@ npm run dev:all
 | **🗑️ Delete Product** | With confirmation dialog |
 | **📥 Import from Excel** | Upload .xlsx — auto-categorizes, auto-links images |
 | **📄 Download Sample** | Click to get a template Excel file |
+
+> **Access:** Admin panel is hidden from the main shop UI. Visit `/admin` directly in the URL to access the password-protected login page.
 
 ---
 
@@ -270,6 +276,7 @@ Frontend (AdminPage.jsx)
 2. Preference saved to `localStorage` (persists across sessions)
 3. All UI text loads from `src/translations/index.js`
 4. Product names and prices use the `product_name_m` / `price_m` fields when available in Marathi mode
+5. **Numerals auto-convert:** Prices and product counts are automatically displayed using Marathi digits (०, १, २, etc.) when Marathi is selected, via the `toMarathiNumerals()` utility in `src/utils/format.js`
 
 ### Adding a New Translation
 

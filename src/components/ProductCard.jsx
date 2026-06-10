@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { toMarathiNumerals } from '../utils/format'
 
 export default function ProductCard({ product, lang, t }) {
   const [imgError, setImgError] = useState(false)
@@ -37,7 +38,7 @@ export default function ProductCard({ product, lang, t }) {
 
         <div className="product-price-row">
           <span className="product-price">
-            {t('currency')}{Number(priceDisplay).toLocaleString('en-IN')}
+            {t('currency')}{toMarathiNumerals(Number(priceDisplay).toLocaleString('en-IN'), lang)}
           </span>
         </div>
 
