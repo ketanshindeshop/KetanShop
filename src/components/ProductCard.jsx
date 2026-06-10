@@ -1,8 +1,8 @@
-import React, { useState } from 'react'
+import React, { memo, useState } from 'react'
 import { toMarathiNumerals } from '../utils/format'
 import { toMarathi } from '../utils/transliterate'
 
-export default function ProductCard({ product, lang, t }) {
+const ProductCard = memo(function ProductCard({ product, lang, t }) {
   const [imgError, setImgError] = useState(false)
   // Prefer the database-stored Marathi name; fall back to client-side transliteration
   const name = lang === 'mr' && product.product_name_mr
@@ -62,4 +62,6 @@ export default function ProductCard({ product, lang, t }) {
       </div>
     </div>
   )
-}
+})
+
+export default ProductCard

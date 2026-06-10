@@ -13,6 +13,7 @@ export function useProducts() {
   const [maxPrice, setMaxPrice] = useState('')
   const [sort, setSort] = useState('sort_order')
   const [dir, setDir] = useState('asc')
+  const [showOutOfStock, setShowOutOfStock] = useState(true)
 
   const fetchProducts = useCallback(async () => {
     setLoading(true)
@@ -24,6 +25,7 @@ export function useProducts() {
       if (category && category !== 'all') params.set('category', category)
       if (minPrice) params.set('minPrice', minPrice)
       if (maxPrice) params.set('maxPrice', maxPrice)
+      if (!showOutOfStock) params.set('show_out_of_stock', 'false')
       params.set('sort', sort)
       params.set('dir', dir)
 
@@ -41,7 +43,7 @@ export function useProducts() {
     } finally {
       setLoading(false)
     }
-  }, [search, category, minPrice, maxPrice, sort, dir])
+  }, [search, category, minPrice, maxPrice, sort, dir, showOutOfStock])
 
   useEffect(() => {
     fetchProducts()
@@ -54,6 +56,7 @@ export function useProducts() {
     setMaxPrice('')
     setSort('sort_order')
     setDir('asc')
+    setShowOutOfStock(true)
   }, [])
 
   const handleSortChange = useCallback((value) => {
@@ -95,6 +98,8 @@ export function useProducts() {
     setMinPrice,
     maxPrice,
     setMaxPrice,
+    showOutOfStock,
+    setShowOutOfStock,
     sort,
     dir,
     setSort,

@@ -1,7 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
-import XLSX from 'xlsx';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
@@ -66,7 +65,13 @@ app.get('/api/products', async (req, res) => {
     }
     // Exclude disabled products (unless admin requests all)
     if (req.query.show_all !== 'true') {
-      conditions.push("availability != 'disabled'");
+      if (req.query.show_out_of_stock === 'false') {
+        // Customer wants to hide out-of-stock — only show available
+        conditions.push("availability = 'yes'");
+      } else {
+        // Show both in-stock and out-of-stock, but exclude disabled
+        conditions.push("availability != 'disabled'");
+      }
     }
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -78,7 +83,14 @@ app.get('/api/products', async (req, res) => {
     const result = await query(sql, params);
 
     // For categories, show all categories when admin fetches all
-    const catWhere = req.query.show_all === 'true' ? '' : "WHERE availability != 'disabled'";
+    let catWhere = '';
+    if (req.query.show_all !== 'true') {
+      if (req.query.show_out_of_stock === 'false') {
+        catWhere = "WHERE availability = 'yes'";
+      } else {
+        catWhere = "WHERE availability != 'disabled'";
+      }
+    }
     const catResult = await query(
       `SELECT DISTINCT category FROM products ${catWhere} ORDER BY category`
     );
@@ -91,7 +103,7 @@ app.get('/api/products', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ API Error:', error);
-    res.status(500).json({ success: false, error: error.message });
+    if (!res.headersSent) res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -118,7 +130,8 @@ app.get('/api/products/:id/image', async (req, res) => {
     const { image_data, image_type } = result.rows[0];
     const imgBuffer = Buffer.from(image_data, 'base64');
     res.setHeader('Content-Type', image_type || 'image/jpeg');
-    res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+    // Cache images for 7 days. Browser cache is busted via ?v=updated_at query param.
+    res.setHeader('Cache-Control', 'public, max-age=604800');
     res.setHeader('Content-Length', imgBuffer.length);
     res.end(imgBuffer);
   } catch (error) {
@@ -224,6 +237,8 @@ app.post('/api/admin/products/import-excel', requireAdmin, upload.fields([
     if (!req.files || !req.files.file || req.files.file.length === 0) {
       return res.status(400).json({ success: false, error: 'No Excel file uploaded' });
     }
+    // Lazy-load xlsx — only imported when this endpoint is actually hit
+    const XLSX = await import('xlsx').then(m => m.default);
     const workbook = XLSX.read(req.files.file[0].buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
     const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
@@ -321,6 +336,7 @@ app.post('/api/admin/products/import-excel', requireAdmin, upload.fields([
 // GET /api/admin/sample-excel - Download sample Excel template
 app.get('/api/admin/sample-excel', async (req, res) => {
   try {
+    const XLSX = await import('xlsx').then(m => m.default);
     const wb = XLSX.utils.book_new();
     const data = [
       { Product_Name: 'Sample Product', Price: 100, Sort_Order: 1 },

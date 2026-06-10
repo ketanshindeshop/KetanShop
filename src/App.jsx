@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, lazy, Suspense } from 'react'
 import { useLanguage } from './hooks/useLanguage'
 import { useProducts } from './hooks/useProducts'
 import Header from './components/Header'
@@ -6,7 +6,8 @@ import SearchBar from './components/SearchBar'
 import FilterSidebar from './components/FilterSidebar'
 import ProductGrid from './components/ProductGrid'
 import Footer from './components/Footer'
-import AdminPage from './admin/AdminPage'
+
+const AdminPage = lazy(() => import('./admin/AdminPage'))
 
 export default function App() {
   const [isAdmin, setIsAdmin] = useState(() => window.location.pathname.startsWith('/admin'))
@@ -30,7 +31,16 @@ export default function App() {
   }
 
   if (isAdmin) {
-    return <AdminPage onBackToSite={navigateToHome} />
+    return (
+      <Suspense fallback={
+        <div className="admin-loading" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+          <div className="loading-spinner" />
+          <p>Loading admin panel...</p>
+        </div>
+      }>
+        <AdminPage onBackToSite={navigateToHome} />
+      </Suspense>
+    )
   }
 
   return <MainShop />
@@ -52,6 +62,8 @@ function MainShop() {
     setMinPrice,
     maxPrice,
     setMaxPrice,
+    showOutOfStock,
+    setShowOutOfStock,
     handleSortChange,
     clearFilters,
     hasActiveFilters,
@@ -69,6 +81,8 @@ function MainShop() {
         setMinPrice={setMinPrice}
         maxPrice={maxPrice}
         setMaxPrice={setMaxPrice}
+        showOutOfStock={showOutOfStock}
+        setShowOutOfStock={setShowOutOfStock}
       />
 
       <main className="main-content">
@@ -101,6 +115,8 @@ function MainShop() {
                 setMinPrice={setMinPrice}
                 maxPrice={maxPrice}
                 setMaxPrice={setMaxPrice}
+                showOutOfStock={showOutOfStock}
+                setShowOutOfStock={setShowOutOfStock}
                 hasActiveFilters={hasActiveFilters}
                 clearFilters={clearFilters}
                 t={t}

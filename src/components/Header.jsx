@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 
-export default function Header({ lang, toggleLang, t, onAdminClick, categories, setCategory, minPrice, setMinPrice, maxPrice, setMaxPrice }) {
+export default function Header({ lang, toggleLang, t, onAdminClick, categories, setCategory, minPrice, setMinPrice, maxPrice, setMaxPrice, showOutOfStock, setShowOutOfStock }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [priceOpen, setPriceOpen] = useState(false)
 
@@ -131,6 +131,23 @@ export default function Header({ lang, toggleLang, t, onAdminClick, categories, 
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Out of Stock Toggle */}
+        <div className="mobile-menu-section" style={{ borderTop: '1px solid var(--border-light)', padding: '12px 20px' }}>
+          <h4 className="mobile-menu-section-title">{t('availability')}</h4>
+          <label className="toggle-row">
+            <span className="toggle-label">{t('showOutOfStock')}</span>
+            <span className={`toggle-switch ${showOutOfStock ? 'on' : 'off'}`}>
+              <input
+                type="checkbox"
+                checked={showOutOfStock}
+                onChange={(e) => setShowOutOfStock?.(e.target.checked)}
+                className="toggle-input"
+              />
+              <span className="toggle-slider" />
+            </span>
+          </label>
         </div>
       </div>
     </header>

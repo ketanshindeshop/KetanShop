@@ -51,6 +51,8 @@ export default function FilterSidebar({
   setMinPrice,
   maxPrice,
   setMaxPrice,
+  showOutOfStock,
+  setShowOutOfStock,
   hasActiveFilters,
   clearFilters,
   t,
@@ -110,6 +112,23 @@ export default function FilterSidebar({
             onChange={setMaxPrice}
           />
         </div>
+      </div>
+
+      {/* Out of Stock Toggle */}
+      <div className="filter-section">
+        <h4 className="filter-section-title">{t('availability')}</h4>
+        <label className="toggle-row">
+          <span className="toggle-label">{t('showOutOfStock')}</span>
+          <span className={`toggle-switch ${showOutOfStock ? 'on' : 'off'}`}>
+            <input
+              type="checkbox"
+              checked={showOutOfStock}
+              onChange={(e) => setShowOutOfStock(e.target.checked)}
+              className="toggle-input"
+            />
+            <span className="toggle-slider" />
+          </span>
+        </label>
       </div>
     </div>
   )
