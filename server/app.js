@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
 import { query, getDb, imageToBase64, MIME_MAP, ALLOWED_IMAGE_EXTS } from './db.js';
 import { compressImage } from './compressImage.js';
-import { toMarathi } from '../src/utils/transliterate.js';
+import { toMarathi, getWordMap } from '../src/utils/transliterate.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const upload = multer({
@@ -454,5 +454,8 @@ app.get('/api/admin/sample-excel', async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
+// ─────── Warm up the word map for better first-call accuracy ───────
+getWordMap().catch(() => {});
 
 export default app;
