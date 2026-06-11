@@ -3,6 +3,7 @@ import XLSX from 'xlsx';
 import { getDb, imageToBase64, DB_MIGRATIONS } from './db.js';
 import { compressImage } from './compressImage.js';
 import { toMarathiAsync } from '../src/utils/transliterate.js';
+import { cleanProductName } from '../src/utils/productName.js';
 import 'dotenv/config';
 
 async function seed() {
@@ -111,7 +112,8 @@ async function seed() {
     }
 
     try {
-      const productNameMr = await toMarathiAsync(productName, 'mr') || '';
+      const cleanName = cleanProductName(productName);
+      const productNameMr = await toMarathiAsync(cleanName, 'mr') || '';
       await db.execute({
         sql: `INSERT OR REPLACE INTO products 
           (product_name, product_name_mr, price, image_path, image_data, image_type, category, availability, sort_order)

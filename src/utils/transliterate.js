@@ -41,18 +41,36 @@ const FALLBACK_MAP = {
   'gram flour': 'बेसन',
   'rice flour': 'तांदळाचे पीठ',
 
-  // Spices (compound names)
+  // Spices & Seasonings
   'chilli powder': 'मिरची पूड',
+  'chili powder': 'मिरची पूड',
+  'red chilli powder': 'लाल तिखट',
+  'red chili powder': 'लाल तिखट',
   'turmeric powder': 'हळद पूड',
   'coriander powder': 'धणे पूड',
   'cumin seeds': 'जिरे',
   'mustard seeds': 'मोहरी',
+  'fennel seeds': 'बडीशेप',
+  'fenugreek seeds': 'मेथी',
   'garam masala': 'गरम मसाला',
+  'goda masala': 'गोडा मसाला',
   'kitchen king': 'किचन किंग',
   'pav bhaji masala': 'पाव भाजी मसाला',
   'chicken masala': 'चिकन मसाला',
   'mutton masala': 'मटण मसाला',
   'fish masala': 'फिश मसाला',
+  'black pepper': 'काळी मिरी',
+  'green cardamom': 'हिरवी वेलची',
+  'cinnamon sticks': 'दालचिनी',
+  'cloves': 'लवंग',
+  'asafoetida': 'हिंग',
+  'saffron': 'केसर',
+  'nutmeg': 'जायफळ',
+  'mace': 'जावित्री',
+  'curry leaves': 'कढीपत्ता',
+  'curry leaves powder': 'कढीपत्ता पूड',
+  'dry mango powder': 'आमचूर पूड',
+  'pomegranate seed powder': 'डाळिंब दाणे पूड',
 
   // Oils & Ghee
   'cow ghee': 'गायीचे तूप',
@@ -70,8 +88,32 @@ const FALLBACK_MAP = {
   // Pickles & Chutneys
   'mango chutney': 'आंब्याची चटणी',
   'coconut chutney': 'नारळाची चटणी',
+  'dry coconut chutney': 'सुके नारळ चटणी',
   'tamarind chutney': 'चिंचेची चटणी',
   'green chutney': 'हिरवी चटणी',
+  'mixed vegetable pickle': 'मिक्स भाजी लोणचे',
+  'green chili pickle': 'हिरवी मिरची लोणचे',
+
+  // Grains & pulses
+  'toor dal': 'तूर डाळ',
+  'moong dal': 'मूग डाळ',
+  'chana dal': 'चणा डाळ',
+  'urad dal': 'उडीद डाळ',
+  'masoor dal': 'मसूर डाळ',
+  'whole wheat flour': 'गहू पीठ',
+  'jowar flour': 'ज्वारीचे पीठ',
+  'bajra flour': 'बाजरीचे पीठ',
+  'ragi flour': 'नाचणीचे पीठ',
+  'sonam masoori rice': 'सोनम मसूरी तांदूळ',
+  'poha': 'पोहे',
+
+  // Oils & Ghee
+  'kachi ghani mustard oil': 'कच्ची घाणी मोहरीचे तेल',
+  'peanut oil': 'शेंगदाण्याचे तेल',
+
+  // Sweets & Snacks
+  'bhakarwadi': 'भकरवडी',
+  'shankarpali': 'शंकरपाळी',
 
   // Other foods & products
   'gud': 'गूळ',
