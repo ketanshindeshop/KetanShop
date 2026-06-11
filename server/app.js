@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
 import { query, getDb, imageToBase64, MIME_MAP, ALLOWED_IMAGE_EXTS } from './db.js';
+import { compressImage } from './compressImage.js';
 import { toMarathi } from '../src/utils/transliterate.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -20,6 +21,29 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+/* ─────── Simple in-memory cache ─────── */
+const cache = new Map();
+const CACHE_TTL = 5000; // 5 seconds — short enough to stay fresh, long enough for repeated renders
+
+function getCached(key) {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiry) {
+    cache.delete(key);
+    return null;
+  }
+  return entry.data;
+}
+
+function setCache(key, data) {
+  cache.set(key, { data, expiry: Date.now() + CACHE_TTL });
+  // Evict oldest entries if cache grows too large
+  if (cache.size > 50) {
+    const oldest = cache.entries().next().value;
+    if (oldest) cache.delete(oldest[0]);
+  }
+}
+
 /* ─────── Helper: Check admin auth ─────── */
 function requireAdmin(req, res, next) {
   const adminKey = req.headers['x-admin-key'];
@@ -30,9 +54,14 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+/** Clear the in-memory cache so fresh product data is served after any change */
+function invalidateCache() {
+  cache.clear();
+}
+
 /* ─────── PUBLIC API ─────── */
 
-// GET /api/products - List products (excludes image_data for performance)
+// GET /api/products - List products with server-side pagination (images loaded separately)
 app.get('/api/products', async (req, res) => {
   try {
     const {
@@ -42,7 +71,21 @@ app.get('/api/products', async (req, res) => {
       maxPrice = '',
       sort = 'sort_order',
       dir = 'asc',
+      page = '1',
+      limit = '20',
     } = req.query;
+
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+    const offset = (pageNum - 1) * limitNum;
+
+    // Build a cache key from the query parameters
+    const cacheKey = req.originalUrl;
+    const cached = getCached(cacheKey);
+    if (cached) {
+      res.setHeader('X-Cache', 'HIT');
+      return res.json(cached);
+    }
 
     const conditions = [];
     const params = [];
@@ -66,10 +109,8 @@ app.get('/api/products', async (req, res) => {
     // Exclude disabled products (unless admin requests all)
     if (req.query.show_all !== 'true') {
       if (req.query.show_out_of_stock === 'false') {
-        // Customer wants to hide out-of-stock — only show available
         conditions.push("availability = 'yes'");
       } else {
-        // Show both in-stock and out-of-stock, but exclude disabled
         conditions.push("availability != 'disabled'");
       }
     }
@@ -79,8 +120,14 @@ app.get('/api/products', async (req, res) => {
     const safeSort = allowedSorts.includes(sort) ? sort : 'sort_order';
     const safeDir = dir === 'desc' ? 'DESC' : 'ASC';
 
-    const sql = `SELECT id, product_name, product_name_mr, price, image_path, category, availability, sort_order, created_at, updated_at FROM products ${where} ORDER BY ${safeSort} ${safeDir}`;
-    const result = await query(sql, params);
+    // Get total count (without images) for pagination calculation
+    const countResult = await query(`SELECT COUNT(*) as cnt FROM products ${where}`, params);
+    const total = Number(countResult.rows[0]?.cnt || 0);
+    const totalPages = Math.ceil(total / limitNum);
+
+    // Fetch a page of products (no image_data — loaded separately via /api/products/:id/image)
+    const sql = `SELECT id, product_name, product_name_mr, price, image_path, category, availability, sort_order, created_at, updated_at FROM products ${where} ORDER BY ${safeSort} ${safeDir} LIMIT ? OFFSET ?`;
+    const result = await query(sql, [...params, limitNum, offset]);
 
     // For categories, show all categories when admin fetches all
     let catWhere = '';
@@ -95,12 +142,21 @@ app.get('/api/products', async (req, res) => {
       `SELECT DISTINCT category FROM products ${catWhere} ORDER BY category`
     );
 
-    res.json({
+    const response = {
       success: true,
       products: result.rows,
       categories: catResult.rows.map((r) => r.category),
-      total: result.rows.length,
-    });
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages,
+      hasMore: pageNum < totalPages,
+    };
+
+    setCache(cacheKey, response);
+    res.setHeader('X-Cache', 'MISS');
+    res.setHeader('Cache-Control', 'public, max-age=5');
+    res.json(response);
   } catch (error) {
     console.error('❌ API Error:', error);
     if (!res.headersSent) res.status(500).json({ success: false, error: error.message });
@@ -150,15 +206,26 @@ app.post('/api/admin/products', requireAdmin, async (req, res) => {
     }
     // Use admin-provided Marathi name, or auto-generate from English name
     const finalProductNameMr = (product_name_mr && product_name_mr.trim()) ? product_name_mr.trim() : (toMarathi(product_name, 'mr') || '');
+    // Compress uploaded image if provided
+    let compressedData = null;
+    let compressedType = null;
+    if (image_data) {
+      const imgBuffer = Buffer.from(image_data, 'base64');
+      const compressed = await compressImage(imgBuffer);
+      compressedData = compressed.buffer.toString('base64');
+      compressedType = compressed.mime;
+    }
+
     const result = await getDb().execute({
       sql: `INSERT INTO products (product_name, product_name_mr, price, category, image_path, image_data, image_type, availability, sort_order)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         product_name, finalProductNameMr, Number(price) || 0,
-        category || 'Groceries', image_path || '', image_data || null, image_type || null,
+        category || 'Groceries', image_path || '', compressedData || image_data || null, compressedType || image_type || null,
         availability || 'yes', Number(sort_order) || 0,
       ],
     });
+    invalidateCache();
     res.json({ success: true, id: Number(result.lastInsertRowid), message: 'Product created' });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -191,8 +258,22 @@ app.put('/api/admin/products/:id', requireAdmin, async (req, res) => {
     if (price !== undefined) { updates.push('price = ?'); values.push(Number(price)); }
     if (category !== undefined) { updates.push('category = ?'); values.push(category); }
     if (image_path !== undefined) { updates.push('image_path = ?'); values.push(image_path); }
-    if (image_data !== undefined) { updates.push('image_data = ?'); values.push(image_data || null); }
-    if (image_type !== undefined) { updates.push('image_type = ?'); values.push(image_type || null); }
+    // If a new image is being uploaded, compress it first
+    if (image_data !== undefined) {
+      if (image_data) {
+        const imgBuffer = Buffer.from(image_data, 'base64');
+        const compressed = await compressImage(imgBuffer);
+        updates.push('image_data = ?');
+        values.push(compressed.buffer.toString('base64'));
+        updates.push('image_type = ?');
+        values.push(compressed.mime);
+      } else {
+        updates.push('image_data = ?');
+        values.push(null);
+        updates.push('image_type = ?');
+        values.push(null);
+      }
+    }
     if (availability !== undefined) { updates.push('availability = ?'); values.push(availability); }
     if (sort_order !== undefined) { updates.push('sort_order = ?'); values.push(Number(sort_order)); }
 
@@ -206,6 +287,7 @@ app.put('/api/admin/products/:id', requireAdmin, async (req, res) => {
     const sql = `UPDATE products SET ${updates.join(', ')} WHERE id = ?`;
     await getDb().execute({ sql, args: values });
 
+    invalidateCache();
     res.json({ success: true, message: 'Product updated' });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -222,6 +304,7 @@ app.delete('/api/admin/products/:id', requireAdmin, async (req, res) => {
     if (Number(result.rowsAffected) === 0) {
       return res.status(404).json({ success: false, error: 'Product not found' });
     }
+    invalidateCache();
     res.json({ success: true, message: 'Product deleted' });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -266,9 +349,12 @@ app.post('/api/admin/products/import-excel', requireAdmin, upload.fields([
         continue;
       }
 
+      // Compress the image: resize to 400px max and convert to WebP
+      const compressed = await compressImage(imgFile.buffer);
+
       uploadedImages.set(basename.toLowerCase(), {
-        base64: imgFile.buffer.toString('base64'),
-        mime: MIME_MAP[ext] || 'image/jpeg',
+        base64: compressed.buffer.toString('base64'),
+        mime: compressed.mime,
       });
     }
 
@@ -278,14 +364,18 @@ app.post('/api/admin/products/import-excel', requireAdmin, upload.fields([
       const productName = row.Product_Name || '';
       const price = Number(row.Price) || 0;
 
-      // Determine category from product name
+      // Determine category: read from Excel if provided, otherwise guess from product name
       let category = 'Groceries';
-      const name = productName.toLowerCase();
-      if (name.includes('chikki') || name.includes('ladoo') || name.includes('sweet')) category = 'Sweets & Snacks';
-      else if (name.includes('spice') || name.includes('masala') || name.includes('turmeric') || name.includes('haldi')) category = 'Spices';
-      else if (name.includes('rice') || name.includes('basmati') || name.includes('dal') || name.includes('grain') || name.includes('flour')) category = 'Grains & Rice';
-      else if (name.includes('pickle') || name.includes('chutney') || name.includes('mango')) category = 'Pickles & Chutneys';
-      else if (name.includes('tea') || name.includes('coffee') || name.includes('drink')) category = 'Beverages';
+      if (row.Category && typeof row.Category === 'string' && row.Category.trim()) {
+        category = row.Category.trim();
+      } else {
+        const name = productName.toLowerCase();
+        if (name.includes('chikki') || name.includes('ladoo') || name.includes('sweet')) category = 'Sweets & Snacks';
+        else if (name.includes('spice') || name.includes('masala') || name.includes('turmeric') || name.includes('haldi')) category = 'Spices';
+        else if (name.includes('rice') || name.includes('basmati') || name.includes('dal') || name.includes('grain') || name.includes('flour')) category = 'Grains & Rice';
+        else if (name.includes('pickle') || name.includes('chutney') || name.includes('mango')) category = 'Pickles & Chutneys';
+        else if (name.includes('tea') || name.includes('coffee') || name.includes('drink')) category = 'Beverages';
+      }
 
       // Auto-generate image slug from product name
       const slug = productName.replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
@@ -327,7 +417,19 @@ app.post('/api/admin/products/import-excel', requireAdmin, upload.fields([
       imported++;
     }
 
+    invalidateCache();
     res.json({ success: true, imported, images_imported: imagesImported, message: `Imported ${imported} products` });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/admin/categories - Return list of existing categories
+app.get('/api/admin/categories', requireAdmin, async (req, res) => {
+  try {
+    const result = await query('SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category != \'\' ORDER BY category');
+    const categories = result.rows.map((r) => r.category);
+    res.json({ success: true, categories });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -339,7 +441,7 @@ app.get('/api/admin/sample-excel', async (req, res) => {
     const XLSX = await import('xlsx').then(m => m.default);
     const wb = XLSX.utils.book_new();
     const data = [
-      { Product_Name: 'Sample Product', Price: 100, Sort_Order: 1 },
+      { Product_Name: 'Sample Product', Price: 100, Category: 'Groceries', Sort_Order: 1 },
     ];
     const ws = XLSX.utils.json_to_sheet(data);
     XLSX.utils.book_append_sheet(wb, ws, 'Products');

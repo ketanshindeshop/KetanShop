@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'fs';
 import XLSX from 'xlsx';
 import { getDb, imageToBase64, DB_MIGRATIONS } from './db.js';
+import { compressImage } from './compressImage.js';
 import { toMarathi } from '../src/utils/transliterate.js';
 import 'dotenv/config';
 
@@ -76,33 +77,37 @@ async function seed() {
       imagePath = `/product_images/${imagePath}`;
     }
 
-    // Read image from disk and convert to base64
+    // Read image from disk, convert to base64, and compress to WebP 400px
     let imageData = null;
     let imageType = null;
     const imgResult = imageToBase64(imagePath);
     if (imgResult) {
-      imageData = imgResult.base64;
-      imageType = imgResult.mime;
+      const imgBuffer = Buffer.from(imgResult.base64, 'base64');
+      const compressed = await compressImage(imgBuffer);
+      imageData = compressed.buffer.toString('base64');
+      imageType = compressed.mime;
     }
 
     const sortOrder = Number(row.Sort_Order) || 0;
     const availability = String(row.availability || 'yes').toLowerCase();
 
-    // Determine category based on product name or default
+    // Determine category: read from Excel if provided, otherwise guess from product name
     let category = 'Groceries';
-
-    // Simple categorization
-    const name = productName.toLowerCase();
-    if (name.includes('chikki') || name.includes('ladoo') || name.includes('sweet')) {
-      category = 'Sweets & Snacks';
-    } else if (name.includes('spice') || name.includes('masala') || name.includes('powder')) {
-      category = 'Spices';
-    } else if (name.includes('rice') || name.includes('dal') || name.includes('flour') || name.includes('grain')) {
-      category = 'Grains & Rice';
-    } else if (name.includes('pickle') || name.includes('chutney') || name.includes('kachumber')) {
-      category = 'Pickles & Chutneys';
-    } else if (name.includes('tea') || name.includes('coffee') || name.includes('drink')) {
-      category = 'Beverages';
+    if (row.Category && typeof row.Category === 'string' && row.Category.trim()) {
+      category = row.Category.trim();
+    } else {
+      const name = productName.toLowerCase();
+      if (name.includes('chikki') || name.includes('ladoo') || name.includes('sweet')) {
+        category = 'Sweets & Snacks';
+      } else if (name.includes('spice') || name.includes('masala') || name.includes('powder')) {
+        category = 'Spices';
+      } else if (name.includes('rice') || name.includes('dal') || name.includes('flour') || name.includes('grain')) {
+        category = 'Grains & Rice';
+      } else if (name.includes('pickle') || name.includes('chutney') || name.includes('kachumber')) {
+        category = 'Pickles & Chutneys';
+      } else if (name.includes('tea') || name.includes('coffee') || name.includes('drink')) {
+        category = 'Beverages';
+      }
     }
 
     try {

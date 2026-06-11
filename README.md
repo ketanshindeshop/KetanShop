@@ -20,6 +20,9 @@ An Indian grocery e-commerce website built with **React + Vite** (frontend) and 
 - [Scripts Reference](#-scripts-reference)
 - [Environment Variables](#-environment-variables)
 - [Marathi Transliteration](#-marathi-transliteration)
+- [Performance Optimizations](#-performance-optimizations)
+- [Current Products (56 total)](#-current-products-56-total)
+- [Adding New Products](#-adding-new-products)
 
 ---
 
@@ -51,42 +54,44 @@ ShriramTraders/
 ├── package.json                  # Dependencies & scripts
 ├── vite.config.js                # Vite config with API proxy
 ├── schema.sql                    # Database schema (products table)
-├── KetanShop.xlsx                # Product data in Excel format
+├── KetanShop.xlsx                # Product data in Excel format (56 products)
+├── vercel.json                   # Vercel deployment config
+├── features.md                   # Product feature planning doc
 │
-├── public/
-│   └── product_images/           # Source images for seeding (optional — stored in DB at runtime)
-│       ├── Shengadanyachi_Chikki.jpeg
-│       ├── Kashmiri_Garlic_Black.jpeg
-│       ├── Organic_Gud_Jaggery.jpeg
-│       ├── Pure_Haldi_Powder.jpeg
-│       ├── Premium_Basmati_Rice.jpeg
-│       └── Mango_Pickle_Aam_ka_Achar.jpeg
+├── public/                       # Static assets (served as-is by Express)
+│
+├── scripts/
+│   ├── check-db-stats.js         # DB statistics utility
+│   └── recompress-images.js      # Bulk image re-compression script
 │
 ├── server/
 │   ├── db.js                     # Turso DB connection (singleton)
-│   ├── index.js                  # Express API — public + admin endpoints
+│   ├── app.js                    # Express API — all public + admin endpoints
+│   ├── index.js                  # Server entry point
+│   ├── compressImage.js          # Sharp-based image compression (600px WebP)
 │   └── seed.js                   # Reads KetanShop.xlsx → seeds Turso DB
 │
 ├── src/
 │   ├── main.jsx                  # React entry point
-│   ├── App.jsx                   # Root component with /admin routing
-│   ├── index.css                 # Global CSS (shop styling)
+│   ├── App.jsx                   # Root component with /admin routing + lazy loading
+│   ├── index.css                 # Global CSS (shop styling, skeletons, mobile menu)
 │   │
 │   ├── utils/
 │   │   ├── format.js             # Number formatting — Marathi numeral conversion
 │   │   └── transliterate.js      # English → Marathi Devanagari transliteration engine
 │   │
 │   ├── components/
-│   │   ├── Header.jsx            # Nav bar + language toggle + admin link
+│   │   ├── Header.jsx            # Nav bar + mobile menu + language toggle + filters
 │   │   ├── SearchBar.jsx         # Debounced auto-search input
-│   │   ├── FilterSidebar.jsx     # Category + price range filters
-│   │   ├── ProductGrid.jsx       # Product card grid + sorting
-│   │   ├── ProductCard.jsx       # Individual product card
-│   │   └── Footer.jsx            # Site footer
+│   │   ├── FilterSidebar.jsx     # Category + price range + stock toggle filters
+│   │   ├── ProductGrid.jsx       # Product grid + infinite scroll + skeleton loading
+│   │   ├── ProductCard.jsx       # Individual product card (memo'd, lazy image)
+│   │   ├── LenisSmoothScroll.jsx # Smooth scroll wrapper
+│   │   └── Footer.jsx            # Site footer with contact info
 │   │
 │   ├── hooks/
 │   │   ├── useLanguage.js        # Language state (EN/MR) with localStorage
-│   │   └── useProducts.js        # Product fetching + filter state
+│   │   └── useProducts.js        # Product fetching + filter state + pagination
 │   │
 │   ├── translations/
 │   │   └── index.js              # All UI strings in English & Marathi
@@ -95,10 +100,9 @@ ShriramTraders/
 │       ├── AdminPage.jsx         # Password gate + tab navigation
 │       ├── AdminDashboard.jsx    # Product CRUD table
 │       ├── ProductForm.jsx       # Create/edit product modal
-│       ├── ImportExcel.jsx       # Excel upload + sample download
+│       ├── ImportExcel.jsx       # Excel upload + sample download + category info
 │       └── admin.css             # Admin panel styles
 │
-├── skill.md                      # Turso DB setup guide (reference)
 └── README.md                     # This file
 ```
 
@@ -156,11 +160,16 @@ npm run dev:all
 | **💰 Price Filter** | Min/max range inputs with 500ms debounce |
 | **🌐 Language Toggle** | Switch between English (EN) and Marathi (मराठी) at top |
 | **🔢 Marathi Numerals** | Prices and counts automatically convert to Marathi digits (०-९) in Marathi mode |
-| **📱 Responsive** | Mobile-friendly — sidebar collapses, grid adapts |
+| **📱 Responsive** | Mobile-friendly — sidebar collapses, grid adapts, mobile hamburger menu |
 | **🔄 Sorting** | Default, Price (Low→High / High→Low), Name |
 | **🏷️ Brand** | Shriram Traders throughout |
 | **🖼️ Product Images** | Real product photos stored in DB, served via API, with hover zoom effect |
-| **📦 Stock Status** | Shows "In Stock" / "Out of Stock" on each product |
+| **📦 Stock Status** | Shows "In Stock" / "Out of Stock" / "Disabled" on each product |
+| **♾️ Infinite Scroll** | IntersectionObserver-based auto-loading with 200px offset |
+| **🦴 Skeleton Loading** | Shimmer animation placeholders while products load |
+| **⚡ Image Prefetching** | New product images preloaded via `<link rel="preload">` |
+| **📦 Image Compression** | Images resized to 600px max, converted to WebP at 85% quality via Sharp |
+| **🔄 Smooth Scrolling** | Lenis-powered smooth scroll for polished UX |
 
 ### Admin Panel (`/admin`)
 
@@ -204,10 +213,11 @@ CREATE TABLE products (
 | Category | Keywords |
 |----------|----------|
 | Groceries | _(default)_ |
-| Sweets & Snacks | chikki, ladoo, sweet |
-| Spices | spice, masala, turmeric, haldi, powder |
-| Grains & Rice | rice, basmati, dal, grain, flour |
-| Pickles & Chutneys | pickle, chutney, mango |
+| Spices | spice, masala, turmeric, haldi, powder, garlic, cumin, pepper, cardamom |
+| Sweets & Snacks | chikki, ladoo, sweet, chakli, bhakarwadi, shankarpali |
+| Grains & Rice | rice, basmati, dal, grain, flour, atta, besan, poha |
+| Pickles & Chutneys | pickle, chutney, mango, achar |
+| Oils & Ghee | oil, ghee |
 | Beverages | tea, coffee, drink |
 
 ---
@@ -232,7 +242,10 @@ CREATE TABLE products (
 | `maxPrice` | number | `''` | Maximum price |
 | `sort` | string | `sort_order` | Sort column: `sort_order`, `product_name`, `price`, `created_at` |
 | `dir` | string | `asc` | Sort direction: `asc`, `desc` |
-| `show_all` | bool | `false` | If `true`, includes out-of-stock products |
+| `show_all` | bool | `false` | If `true`, includes disabled products |
+| `show_out_of_stock` | bool | `true` | If `false`, hides out-of-stock products |
+| `page` | number | `1` | Page number for pagination |
+| `limit` | number | `20` | Products per page (max 100) |
 
 ### Admin Endpoints (require `x-admin-key` header)
 
@@ -241,8 +254,11 @@ CREATE TABLE products (
 | `POST` | `/api/admin/products` | Create a product |
 | `PUT` | `/api/admin/products/:id` | Update a product |
 | `DELETE` | `/api/admin/products/:id` | Delete a product |
-| `POST` | `/api/admin/products/import-excel` | Import from Excel (multipart upload) |
-| `GET` | `/api/admin/sample-excel` | Download sample Excel template |
+| `POST` | `/api/admin/products/import-excel` | Import from Excel (multipart upload, supports `images` field) |
+| `GET` | `/api/admin/sample-excel` | Download sample Excel template (includes `Category` column) |
+| `GET` | `/api/admin/categories` | List all existing categories in the store |
+
+
 
 ---
 
@@ -351,20 +367,23 @@ If no image is stored in the database or the image fails to load, a placeholder 
 |--------|----------|-------------|
 | `Product_Name` | ✅ Yes | Product name in English |
 | `Price` | ✅ Yes | Product price (number) |
+| `Category` | Optional | Category name. If omitted, guessed from product name. See [existing categories list](https://github.com/ketanshinde/shop) for reference |
 | `Sort_Order` | Optional | Display order (lower = first) |
 
 > **Marathi names** are auto-generated from the English name via server-side transliteration. To override, edit the product in the admin panel and set a custom Marathi name.
+> **Categories** can be provided in the `Category` column. The import page shows existing categories in the store as a reference.
 
 ### Import via Admin Panel
 
 1. Go to Admin → **Import Excel** tab
-2. Click **Download Sample Excel** to get a template
-3. Fill in your products
-4. Upload the `.xlsx` file
-5. **Optional:** Select image files named to match your product slugs (e.g., `Kashmiri_Garlic_Black.jpeg`)
-6. Click **Import Products** — system auto-categorizes, matches images by filename, and stores them in the database
+2. Click **Download Sample Excel** to get a template (includes `Category` column)
+3. **Reference:** The import page shows existing categories to help you fill the `Category` column
+4. Fill in your products
+5. Upload the `.xlsx` file
+6. **Optional:** Select image files named to match your product slugs (e.g., `Kashmiri_Garlic_Black.jpeg`)
+7. Click **Import Products** — system auto-categorizes (if no category provided), matches images by filename, and stores them in the database
 
-> **Image matching:** Image filenames are matched case-insensitively to product slugs. E.g., `kashmiri_garlic_black.jpeg` matches product "Kashmiri Garlic Black". Supported formats: JPEG, PNG, GIF, WebP. Max 10 MB per file.
+> **Image matching:** Image filenames are matched case-insensitively to product slugs. E.g., `kashmiri_garlic_black.jpeg` matches product "Kashmiri Garlic Black". Supported formats: JPEG, PNG, GIF, WebP. Max 10 MB per file. Images are automatically compressed and converted to WebP via Sharp.
 
 ### Import via Command Line
 
@@ -413,6 +432,7 @@ pm2 start server/index.js --name shriram-traders
 | `npm run build` | Build frontend for production → `dist/` |
 | `npm run preview` | Preview production build locally |
 | `npm run seed` | Read `KetanShop.xlsx` and seed Turso DB |
+| `npm run db:stats` | Show DB statistics (product count, categories, image info) |
 
 ---
 
@@ -431,6 +451,29 @@ VITE_ADMIN_SECRET=ketan123   # Frontend admin password (VITE_ prefix for Vite)
 ```
 
 > **Security:** The `.env` file is in `.gitignore` and will NOT be committed to version control. On Vercel/Netlify, add these as environment variables in the dashboard.
+
+---
+
+## ⚡ Performance Optimizations
+
+The following optimizations are in place:
+
+| Optimization | Location | Details |
+|-------------|----------|--------|
+| **Image Compression** | `server/compressImage.js` | Sharp resizes to 600px max, converts to WebP at 85% quality. Applied during seed, import, and product create/update. |
+| **Server-side Pagination** | `server/app.js` | 20 products per page with `LIMIT/OFFSET`. Reduces initial payload. |
+| **Separated Image Loading** | `GET /api/products/:id/image` | Product list doesn't include base64 images — loaded on-demand via dedicated endpoint. |
+| **In-memory API Cache** | `server/app.js` | 5-second TTL cache for product list responses. Prevents redundant DB queries. |
+| **7-day Browser Cache** | Image endpoint | `Cache-Control: public, max-age=604800` with `?v=updated_at` for cache busting. |
+| **Native Lazy Loading** | `ProductCard.jsx` | `loading="lazy"` defers offscreen images. |
+| **Image Prefetching** | `ProductGrid.jsx` | `<link rel="preload">` injected for newly loaded products' images. |
+| **Infinite Scroll** | `ProductGrid.jsx` | `IntersectionObserver` with 200px rootMargin triggers next page load. |
+| **Code Splitting** | `App.jsx` | `React.lazy()` + `Suspense` for AdminPage — admin code loads only when visiting `/admin`. |
+| **Skeleton Loading** | `ProductGrid.jsx` | Shimmer animation cards during initial load and load-more states. |
+| **Debounced Filters** | `FilterSidebar.jsx` | 500ms debounce on price range inputs prevents excessive API calls. |
+| **Memo'd Components** | `ProductCard.jsx` | `React.memo` prevents unnecessary re-renders. |
+| **Stale Response Guard** | `useProducts.js` | Generation counter discards stale API responses after filter changes. |
+| **Smooth Scrolling** | `LenisSmoothScroll.jsx` | Lenis library for performant smooth scrolling. |
 
 ---
 
@@ -456,16 +499,20 @@ const WORD_MAP = {
 
 ---
 
-## 📦 Current Products
+## 📦 Current Products (56 total)
 
-| # | Product | Category | Price | Image |
-|---|---------|----------|-------|-------|
-| 1 | Shengadanyachi Chikki | Sweets & Snacks | ₹50 | ✅ |
-| 2 | Kashmiri Garlic Black | Groceries | ₹180 | ✅ |
-| 3 | Organic Gud (Jaggery) | Groceries | ₹80 | ✅ |
-| 4 | Pure Haldi Powder | Spices | ₹60 | ✅ |
-| 5 | Premium Basmati Rice | Grains & Rice | ₹220 | ✅ |
-| 6 | Mango Pickle (Aam ka Achar) | Pickles & Chutneys | ₹90 | ✅ |
+The store includes a diverse catalog spanning 6 categories:
+
+| Category | Count | Sample Products | Price Range |
+|----------|-------|----------------|-------------|
+| **Spices** | 22 | Haldi, Jeera, Garam Masala, Hing, Kesar, Elaichi | ₹55 – ₹800 |
+| **Grains & Rice** | 15 | Basmati Rice, Toor Dal, Atta, Besan, Poha | ₹45 – ₹220 |
+| **Sweets & Snacks** | 7 | Chikki, Til Ladoo, Besan Ladoo, Chakli, Bhakarwadi | ₹50 – ₹180 |
+| **Pickles & Chutneys** | 6 | Mango Pickle, Lemon Pickle, Garlic Pickle | ₹80 – ₹150 |
+| **Oils & Ghee** | 5 | Cow Ghee, Mustard Oil, Coconut Oil | ₹180 – ₹550 |
+| **Beverages** | 1 | Masala Chai (Spiced Tea) | ₹250 |
+
+> Products are seeded from `KetanShop.xlsx` via `npm run seed`. Images are stored in the database and compressed to WebP format.
 
 ---
 

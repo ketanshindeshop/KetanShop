@@ -6,8 +6,26 @@ export default function ImportExcel({ secret, onImported }) {
   const [importing, setImporting] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
+  const [existingCategories, setExistingCategories] = useState([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
   const fileRef = useRef(null)
   const imagesRef = useRef(null)
+
+  // Fetch existing categories on mount
+  useEffect(() => {
+    let cancelled = false
+    setCategoriesLoading(true)
+    fetch('/api/admin/categories', { headers: { 'x-admin-key': secret } })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled && data.success) {
+          setExistingCategories(data.categories)
+        }
+        if (!cancelled) setCategoriesLoading(false)
+      })
+      .catch(() => { if (!cancelled) setCategoriesLoading(false) })
+    return () => { cancelled = true }
+  }, [secret])
 
   const handleFileChange = (e) => {
     const f = e.target.files?.[0]
@@ -94,8 +112,23 @@ export default function ImportExcel({ secret, onImported }) {
         <div className="admin-import-divider" />
 
         <div className="admin-import-section">
+          {!categoriesLoading && existingCategories.length > 0 && (
+            <div className="admin-import-info">
+              <p>
+                <strong>📂 Existing categories in the store:</strong>{' '}
+                {existingCategories.map((cat, i) => (
+                  <span key={cat}>
+                    {i > 0 && ', '}
+                    <code>{cat}</code>
+                  </span>
+                ))}
+                . Use these in your <code>Category</code> column, or new ones will be created automatically.
+              </p>
+            </div>
+          )}
+
           <h3>2. Select Excel File</h3>
-          <p>Upload an Excel file with columns: <code>Product_Name</code>, <code>Price</code>, <code>Sort_Order</code>.</p>
+          <p>Upload an Excel file with columns: <code>Product_Name</code>, <code>Price</code>, <code>Category</code>, <code>Sort_Order</code>.</p>
 
           <div className="admin-import-upload">
             <input
@@ -212,6 +245,7 @@ export default function ImportExcel({ secret, onImported }) {
             <tbody>
               <tr><td><code>Product_Name</code></td><td>✅ Yes</td><td>Product name in English</td></tr>
               <tr><td><code>Price</code></td><td>✅ Yes</td><td>Product price (number)</td></tr>
+              <tr><td><code>Category</code></td><td>Optional</td><td>Category name (if omitted, guessed from product name)</td></tr>
               <tr><td><code>Sort_Order</code></td><td>Optional</td><td>Display order (lower = first)</td></tr>
             </tbody>
           </table>

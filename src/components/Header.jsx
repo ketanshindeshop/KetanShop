@@ -1,10 +1,99 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
+import { useLenis } from './LenisSmoothScroll'
 
 export default function Header({ lang, toggleLang, t, onAdminClick, categories, setCategory, minPrice, setMinPrice, maxPrice, setMaxPrice, showOutOfStock, setShowOutOfStock }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [priceOpen, setPriceOpen] = useState(false)
+  const touchStartX = useRef(0)
+  const menuPanelRef = useRef(null)
 
-  const closeMenu = () => setMenuOpen(false)
+  // Helper to clear any inline styles left on the menu panel
+  const clearMenuInlineStyles = () => {
+    if (menuPanelRef.current) {
+      menuPanelRef.current.style.transition = ''
+      menuPanelRef.current.style.transform = ''
+      menuPanelRef.current.style.opacity = ''
+    }
+  }
+
+  // Lock body scroll and pause Lenis when mobile menu is open
+  useEffect(() => {
+    if (menuOpen) {
+      document.body.style.overflow = 'hidden'
+      lenisRef?.current?.stop()
+    } else {
+      document.body.style.overflow = ''
+      lenisRef?.current?.start()
+      clearMenuInlineStyles()
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [menuOpen])
+
+  const lenisRef = useLenis()
+
+  const scrollToFooter = () => {
+    if (lenisRef?.current) {
+      lenisRef.current.scrollTo('#footer-contact', { offset: 0, duration: 1.5 })
+    } else {
+      document.getElementById('footer-contact')?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }
+
+  const closeMenu = () => {
+    setMenuOpen(false)
+  }
+
+  const toggleMenu = () => {
+    // Ensure clean state when opening
+    if (!menuOpen) {
+      clearMenuInlineStyles()
+    }
+    setMenuOpen(!menuOpen)
+  }
+
+  /* ── Swipe-to-close gesture on the mobile menu panel ── */
+  const handleTouchStart = (e) => {
+    if (!menuOpen || !menuPanelRef.current) return
+    touchStartX.current = e.touches[0].clientX
+    // Disable CSS transition so the menu follows the finger immediately
+    menuPanelRef.current.style.transition = 'none'
+  }
+
+  const handleTouchMove = (e) => {
+    if (!menuOpen || !menuPanelRef.current) return
+    const deltaX = e.touches[0].clientX - touchStartX.current
+    // Only handle leftward swipes
+    if (deltaX >= 0) return
+    const cappedOffset = Math.max(deltaX, -300)
+    // Translate the menu panel to follow the finger
+    menuPanelRef.current.style.transform = `translateX(${cappedOffset}px)`
+    // Fade opacity proportionally — from 1 to 0.3 as user swipes
+    const progress = Math.abs(deltaX) / 300
+    menuPanelRef.current.style.opacity = Math.max(0.3, 1 - progress)
+  }
+
+  const handleTouchEnd = () => {
+    if (!menuPanelRef.current) return
+    // Restore the CSS transition for a smooth snap-back or close animation
+    menuPanelRef.current.style.transition = ''
+
+    const currentTransform = menuPanelRef.current.style.transform
+    const match = currentTransform.match(/translateX\((-?\d+\.?\d*)px\)/)
+    const offset = match ? parseFloat(match[1]) : 0
+
+    if (offset < -80) {
+      // Swiped far enough — animate the menu off-screen, then close
+      menuPanelRef.current.style.transform = 'translateX(-100%)'
+      menuPanelRef.current.style.opacity = '0'
+      setTimeout(() => closeMenu(), 350)
+    } else {
+      // Not far enough — snap back to open position
+      menuPanelRef.current.style.transform = ''
+      menuPanelRef.current.style.opacity = ''
+    }
+  }
 
   return (
     <header className="header">
@@ -19,7 +108,7 @@ export default function Header({ lang, toggleLang, t, onAdminClick, categories, 
         <nav className="nav-links">
           <button className="nav-link active">{t('home')}</button>
           <button className="nav-link">{t('products')}</button>
-          <button className="nav-link" onClick={() => document.getElementById('footer-contact')?.scrollIntoView({ behavior: 'smooth' })}>{t('contact')}</button>
+          <button className="nav-link" onClick={() => scrollToFooter()}>{t('contact')}</button>
         </nav>
 
         <div className="header-right">
@@ -41,7 +130,7 @@ export default function Header({ lang, toggleLang, t, onAdminClick, categories, 
           {/* Hamburger — visible only on mobile */}
           <button
             className={`hamburger-btn ${menuOpen ? 'open' : ''}`}
-            onClick={() => setMenuOpen(!menuOpen)}
+            onClick={toggleMenu}
             aria-label="Toggle navigation menu"
           >
             <span className="hamburger-line" />
@@ -53,7 +142,13 @@ export default function Header({ lang, toggleLang, t, onAdminClick, categories, 
 
       {/* Mobile menu overlay */}
       <div className={`mobile-menu-overlay ${menuOpen ? 'visible' : ''}`} onClick={closeMenu} />
-      <div className={`mobile-menu ${menuOpen ? 'open' : ''}`}>
+      <div
+        className={`mobile-menu ${menuOpen ? 'open' : ''}`}
+        ref={menuPanelRef}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
         <div className="mobile-menu-header">
           <span className="mobile-menu-title">{t('home')}</span>
           <button className="mobile-menu-close" onClick={closeMenu}>✕</button>
@@ -68,7 +163,7 @@ export default function Header({ lang, toggleLang, t, onAdminClick, categories, 
             <span className="mobile-menu-icon">📦</span>
             <span>{t('products')}</span>
           </a>
-          <a href="#footer-contact" className="mobile-menu-item" onClick={(e) => { e.preventDefault(); closeMenu(); setTimeout(() => document.getElementById('footer-contact')?.scrollIntoView({ behavior: 'smooth' }), 200) }}>
+          <a href="#footer-contact" className="mobile-menu-item" onClick={(e) => { e.preventDefault(); closeMenu(); setTimeout(() => scrollToFooter(), 200) }}>
             <span className="mobile-menu-icon">📞</span>
             <span>{t('contact')}</span>
           </a>

@@ -609,6 +609,27 @@
   border-radius: 4px;
 }
 
+/* Categories info message */
+.admin-import-info {
+  margin-bottom: 20px;
+  padding: 14px 18px;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 10px;
+  color: #3730a3;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.admin-import-info code {
+  background: #dde5ff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #4338ca;
+}
+
 /* Admin format table */
 .admin-format-table {
   width: 100%;
@@ -653,9 +674,107 @@
   .admin-nav {
     flex-wrap: wrap;
     justify-content: center;
+    gap: 6px;
   }
 
   .admin-table-wrapper {
     overflow-x: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  /* ── Login card ── */
+  .admin-login-card {
+    padding: 32px 20px;
+  }
+
+  .admin-login-header h1 {
+    font-size: 1.4rem;
+  }
+
+  /* ── Header ── */
+  .admin-title {
+    font-size: 1rem;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .admin-nav-btn {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+  }
+
+  .admin-back-btn,
+  .admin-logout-btn {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+  }
+
+  /* ── Dashboard header ── */
+  .admin-dashboard-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .admin-dashboard-header h2 {
+    font-size: 1.15rem;
+  }
+
+  .admin-dashboard-header .admin-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* ── Table ── */
+  .admin-table th,
+  .admin-table td {
+    padding: 8px 10px;
+    font-size: 0.8rem;
+  }
+
+  .admin-thumb {
+    width: 36px;
+    height: 36px;
+  }
+
+  .admin-thumb-placeholder {
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+  }
+
+  .admin-name-cell {
+    max-width: 120px;
+  }
+
+  .admin-name-mr {
+    font-size: 0.75rem;
+  }
+
+  .admin-cat-tag {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+  }
+
+  .admin-actions {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .admin-btn-sm {
+    padding: 5px 10px;
+    font-size: 0.75rem;
+  }
+
+  /* ── Import page ── */
+  .admin-import-card {
+    padding: 20px 16px;
+  }
+
+  .admin-format-table th,
+  .admin-format-table td {
+    padding: 8px 10px;
+    font-size: 0.8rem;
   }
 }

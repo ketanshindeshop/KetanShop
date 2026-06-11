@@ -1,6 +1,7 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react'
 import { useLanguage } from './hooks/useLanguage'
 import { useProducts } from './hooks/useProducts'
+import LenisSmoothScroll from './components/LenisSmoothScroll'
 import Header from './components/Header'
 import SearchBar from './components/SearchBar'
 import FilterSidebar from './components/FilterSidebar'
@@ -53,7 +54,9 @@ function MainShop() {
     products,
     categories,
     loading,
+    loadingMore,
     error,
+    hasMore,
     search,
     setSearch,
     category,
@@ -67,9 +70,11 @@ function MainShop() {
     handleSortChange,
     clearFilters,
     hasActiveFilters,
+    loadMore,
   } = useProducts()
 
   return (
+    <LenisSmoothScroll>
     <div className="app">
       <Header
         lang={lang}
@@ -127,11 +132,14 @@ function MainShop() {
               <ProductGrid
                 products={products}
                 loading={loading}
+                loadingMore={loadingMore}
                 error={error}
+                hasMore={hasMore}
                 lang={lang}
                 t={t}
                 handleSortChange={handleSortChange}
                 hasActiveFilters={hasActiveFilters}
+                loadMore={loadMore}
               />
             </section>
           </div>
@@ -140,5 +148,6 @@ function MainShop() {
 
       <Footer t={t} />
     </div>
+    </LenisSmoothScroll>
   )
 }

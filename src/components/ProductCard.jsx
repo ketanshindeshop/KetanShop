@@ -9,10 +9,10 @@ const ProductCard = memo(function ProductCard({ product, lang, t }) {
     ? product.product_name_mr
     : toMarathi(product.product_name, lang)
 
-  // Use the API endpoint to fetch image from DB. Falls back gracefully on error.
-  // Cache-bust with updated_at so new images show immediately after product updates
+  // Fetch image from the API endpoint on-demand.
+  // Native loading="lazy" combined with 7-day Cache-Control ensures efficient loading.
   const imageSrc = product.id ? `/api/products/${product.id}/image?v=${encodeURIComponent(product.updated_at || '0')}` : null
-  const showImg = !imgError && product.id
+  const showImg = !imgError && !!imageSrc
 
   const availabilityClass =
     product.availability === 'yes' ? 'in-stock' :
