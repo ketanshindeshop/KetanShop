@@ -29,6 +29,10 @@
 | **Disabled Products** | Products can be hidden from customers entirely (stay in DB, not shown) |
 | **Stock Badge** | Each product shows "In Stock" (green) or "Out of Stock" (red) |
 | **Image Fallback** | Products without images show a 🛍️ placeholder |
+| **Instant Image Load** | Images embedded as data URIs in API response — zero extra HTTP requests |
+| **Real Product Photos** | All 56 products have real Unsplash photos (compressed WebP) |
+| **Loading Animation** | Pulse effect + spinner on existing products during category/filter switches |
+| **Correct Product Count** | Shows total DB count (56) instead of current page count (20) |
 | **Hover Effect** | Cards lift on hover with image zoom |
 | **Responsive Grid** | Adapts columns based on screen width (auto-fill with minmax) |
 
@@ -64,9 +68,10 @@
 |---------|---------|
 | **English / Marathi Toggle** | Switch between EN and मराठी at the top of every page |
 | **Persistent Preference** | Language choice saved to `localStorage` |
-| **Marathi Transliteration** | English product names → Devanagari script via rule-based engine |
+| **Marathi Transliteration** | English product names → Devanagari script via 3-tier engine (158K-entry lookup + fallback map + phonetic rules) |
 | **Database Override** | If `product_name_mr` is stored in DB, it takes priority over transliteration |
 | **Marathi Numerals** | Prices and counts auto-convert to Marathi digits (०-९) |
+| **Training Data Merge** | Tab-separated .txt files in public/ merged into dataset via `node scripts/merge-training-data.js` |
 | **Category Translation** | Category names transliterate to Marathi in sidebar and mobile menu |
 | **Translation System** | All UI strings in `src/translations/index.js` — single source of truth |
 
@@ -86,10 +91,13 @@
 
 | Feature | Details |
 |---------|---------|
-| **Database Storage** | Images stored as base64 in `image_data` column |
-| **API Serving** | `GET /api/products/:id/image` decodes and serves raw image bytes |
+| **Database Storage** | Images stored as base64 WebP in `image_data` column |
+| **Inline Data URIs** | Images embedded in products list API response — instant render, zero extra HTTP requests |
+| **API Serving** | `GET /api/products/:id/image` fallback endpoint with 7-day Cache-Control |
+| **Real Photos** | All 56 products have real Unsplash photos (~20-68 KB WebP each) |
+| **Unsplash Download** | `node scripts/download-product-images.js` downloads and compresses product photos |
 | **Cache Busting** | Image URLs include `updated_at` timestamp to force refresh after edits |
-| **Upload Methods** | Admin form upload, Excel import with image matching, or disk seed |
+| **Upload Methods** | Admin form upload, Excel import with image matching, Unsplash download script, or disk seed |
 | **Image Preview** | Live preview before upload in admin form |
 | **Supported Formats** | JPEG, PNG, GIF, WebP (max 5MB per file) |
 | **Fallback** | Missing images show 🛍️ placeholder gracefully |

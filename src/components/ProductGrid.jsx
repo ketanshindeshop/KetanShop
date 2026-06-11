@@ -99,15 +99,24 @@ export default function ProductGrid({
         </div>
       ) : (
         <>
-          <div className="product-grid">
-            {products.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                lang={lang}
-                t={t}
-              />
-            ))}
+          <div className="product-grid-wrap">
+            <div className={`product-grid ${loading ? 'grid-loading' : ''}`}>
+              {products.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  lang={lang}
+                  t={t}
+                />
+              ))}
+            </div>
+            {/* Spinner — outside the faded grid so it stays at full opacity */}
+            {loading && (
+              <div className="grid-loading-spinner">
+                <div className="spinner-circle" />
+                <span className="grid-loading-label">{t('loading')}</span>
+              </div>
+            )}
           </div>
 
           {/* Loading more skeleton grid */}

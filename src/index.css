@@ -521,10 +521,62 @@ a {
 }
 
 /* ───────────── Product Grid ───────────── */
+.product-grid-wrap {
+  position: relative;
+}
+
 .product-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 20px;
+  transition: opacity 0.25s ease;
+}
+
+/* Fade existing cards during filter/category switches */
+.product-grid.grid-loading {
+  opacity: 0.5;
+  pointer-events: none;
+  user-select: none;
+}
+
+@keyframes grid-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.8; }
+}
+
+.product-grid.grid-loading .product-card {
+  animation: grid-pulse 0.7s ease-in-out infinite;
+}
+
+/* Loading spinner — positioned above the top of the grid */
+.grid-loading-spinner {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.spinner-circle {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.grid-loading-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--primary);
+  white-space: nowrap;
 }
 
 /* ───────────── Product Card ───────────── */

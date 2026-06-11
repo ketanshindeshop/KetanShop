@@ -35,7 +35,7 @@ An Indian grocery e-commerce website built with **React + Vite** (frontend) and 
 | **Database** | Turso (libSQL — SQLite-compatible edge DB) |
 | **DB Client** | `@libsql/client` |
 | **Excel** | `xlsx` (SheetJS) |
-| **Image Storage** | Stored as base64 in DB via `GET /api/products/:id/image` endpoint |
+| **Image Storage** | Stored as base64 in DB, served inline as data URIs in product list API |
 | **File Upload** | `multer` (Excel import, memory storage) |
 | **Language** | English + Marathi (bilingual UI) |
 | **Styling** | Plain CSS with CSS custom properties |
@@ -61,9 +61,14 @@ ShriramTraders/
 ├── public/                       # Static assets (served as-is by Express)
 │
 ├── scripts/
-│   ├── check-db-stats.js              # DB statistics utility
-│   ├── generate-placeholder-images.js # SVG → WebP placeholder generator
-│   └── recompress-images.js           # Bulk image re-compression script
+│   ├── build-word-map.js                  # Generates wordMap.js from JSONL training data
+│   ├── check-db-stats.js                  # DB statistics utility
+│   ├── cleanup-db.js                      # Re-sequences IDs, cleans product names
+│   ├── download-product-images.js         # Downloads Unsplash photos for all 56 products
+│   ├── generate-placeholder-images.js     # SVG → WebP placeholder generator
+│   ├── merge-training-data.js             # Merges .txt training files into JSONL dataset
+│   ├── recompress-images.js               # Bulk image re-compression script
+│   ├── update-marathi-names.js            # Regenerates Marathi names using improved transliterator
 │
 ├── server/
 │   ├── db.js                     # Turso DB connection (singleton)
@@ -79,7 +84,9 @@ ShriramTraders/
 │   │
 │   ├── utils/
 │   │   ├── format.js             # Number formatting — Marathi numeral conversion
-│   │   └── transliterate.js      # English → Marathi Devanagari transliteration engine
+│   │   ├── productName.js        # Shared cleanProductName utility (strips parenthetical text)
+│   │   ├── transliterate.js      # English → Marathi Devanagari transliteration engine
+│   │   └── wordMap.js            # Auto-generated 158K-entry lookup table (dynamic import)
 │   │
 │   ├── components/
 │   │   ├── Header.jsx            # Nav bar + mobile menu + language toggle + filters
@@ -157,19 +164,21 @@ npm run dev:all
 | Feature | Description |
 |---------|-------------|
 | **🔍 Search** | Debounced (400ms) — searches English & Marathi product names |
-| **📂 Category Filter** | Sidebar with clickable category buttons |
+| **📂 Category Filter** | Sidebar with clickable category buttons, smooth loading animation |
 | **💰 Price Filter** | Min/max range inputs with 500ms debounce |
 | **🌐 Language Toggle** | Switch between English (EN) and Marathi (मराठी) at top |
 | **🔢 Marathi Numerals** | Prices and counts automatically convert to Marathi digits (०-९) in Marathi mode |
 | **📱 Responsive** | Mobile-friendly — sidebar collapses, grid adapts, mobile hamburger menu |
 | **🔄 Sorting** | Default, Price (Low→High / High→Low), Name |
 | **🏷️ Brand** | Shriram Traders throughout |
-| **🖼️ Product Images** | Real product photos stored in DB, served via API, with hover zoom effect |
+| **🖼️ Product Images** | Real Unsplash photos stored in DB, served inline as data URIs (instant load) |
 | **📦 Stock Status** | Shows "In Stock" / "Out of Stock" / "Disabled" on each product |
 | **♾️ Infinite Scroll** | IntersectionObserver-based auto-loading with 200px offset |
 | **🦴 Skeleton Loading** | Shimmer animation placeholders while products load |
-| **⚡ Image Prefetching** | New product images preloaded via `<link rel="preload">` |
+| **🎬 Loading Animation** | Pulse effect + spinner during category/filter switches for instant visual feedback |
+| **✅ Correct Product Count** | Shows total DB count (56) instead of current page count (20) |
 | **📦 Image Compression** | Images resized to 600px max, converted to WebP at 85% quality via Sharp |
+| **⚡ Native Image Lazy Loading** | `loading="lazy"` defers offscreen images |
 | **🔄 Smooth Scrolling** | Lenis-powered smooth scroll for polished UX |
 
 ### Admin Panel (`/admin`)
@@ -315,76 +324,63 @@ Then use it in any component: `t('myNewKey')`
 
 ### Storage
 
-Product images are stored **directly in the database** as base64-encoded data in the `image_data` column, with the MIME type stored in `image_type`. Images are never served directly from the filesystem at runtime.
+Product images are stored **directly in the database** as base64-encoded WebP data in the `image_data` column, with the MIME type stored in `image_type`.
+
+### Real Product Photos
+
+All 56 products have real photos downloaded from Unsplash:
+
+```bash
+node scripts/download-product-images.js
+```
+
+This script:
+1. Maps each of the 56 products to a pre-vetted Unsplash photo URL
+2. Downloads the JPEG, compresses to WebP via Sharp (~20-68 KB per image)
+3. Stores directly in the database
+
+Products in the same category share a category-appropriate photo (e.g., all spices use an Indian-spices photo, all oils use an oil-bottle photo).
 
 ### How Images Are Served
 
-Images are served through the API endpoint `GET /api/products/:id/image`, which:
-1. Queries the database for `image_data` and `image_type`
-2. Decodes the base64 string into raw bytes
-3. Returns the image with the correct `Content-Type` header and `Cache-Control` (1 day)
+Images are served **inline as data URIs** directly in the products list API response — zero additional HTTP requests. The product list endpoint includes `image_data` and `image_type` fields, and the frontend constructs `data:image/webp;base64,...` URIs for instant rendering.
 
-If no image is stored in the DB, the endpoint returns 404 and the frontend shows a placeholder emoji (🛍️) instead.
+A fallback endpoint `GET /api/products/:id/image` is also available (decodes base64, returns raw bytes with 7-day Cache-Control). Used for admin panel and cache busting.
+
+If no image is stored or the image fails to load, a placeholder emoji (🛍️) is shown instead.
 
 ### How Images Get into the Database
 
-There are three ways images end up in the DB:
+There are four ways images end up in the DB:
 
-#### 1. Seed Script (`npm run seed`)
-The seed script reads `KetanShop.xlsx`, generates a slug from each product name, and looks for a matching image file in `public/product_images/`. If found, it reads the file, converts it to base64, and stores it directly in the database.
+#### 1. Unsplash Download Script
+```bash
+node scripts/download-product-images.js
+```
+Downloads real product photos from Unsplash for all products.
 
-#### 2. Admin Product Form (Create/Edit)
-When creating or editing a product via the admin panel:
-1. Click **+ Add Product** or **Edit** on a product
-2. Use the **Product Image** file upload input to select a JPEG, PNG, GIF, or WebP file (max 5 MB)
-3. The image is converted to base64 on the client and sent as JSON `image_data` + `image_type`
-4. The server stores it directly in the database
+#### 2. Seed Script (`npm run seed`)
+Reads `KetanShop.xlsx`, generates a slug from each product name, and looks for matching image files in `public/product_images/`. If found, reads the file, compresses to WebP, and stores in the DB.
 
-#### 3. Excel Import with Images
-When importing products via Excel (see [Excel Import](#-excel-import) below), you can upload image files alongside the Excel file. The system matches images to products by filename.
+#### 3. Admin Product Form (Create/Edit)
+Upload JPEG, PNG, GIF, or WebP (max 5 MB) via the admin panel. The image compresses to WebP via Sharp on the server.
 
-### Naming Convention for Image Files
+#### 4. Excel Import with Images
+Upload image files alongside the Excel file. The system matches images to products by filename (case-insensitive slug matching).
 
-Whether placing images in `public/product_images/` or uploading them during Excel import, filenames should match the product slug:
+### Image Naming Convention
+
 ```
 Product: "Kashmiri Garlic Black"
   → Slug: "Kashmiri_Garlic_Black"
   → File: Kashmiri_Garlic_Black.jpeg
 ```
 
-Supported extensions: `.jpeg`, `.jpg`, `.png`, `.gif`, `.webp`
-
-### Placeholder Images
-
-When no real product photo is available, the system can generate **category-colored placeholder images** with the product name overlaid. These are stored in the database just like real photos.
-
-#### Generating Placeholders
-
-```bash
-node scripts/generate-placeholder-images.js
-```
-
-This script:
-1. Finds all products without images
-2. Generates an SVG placeholder with a category-themed gradient background (each category has its own color — Spices are orange, Grains are brown, etc.)
-3. Renders the SVG to WebP via Sharp (~3-7 KB per image)
-4. Stores the resulting image directly in the `image_data` column
-
-#### Category Colors
-
-| Category | Background |
-|----------|-----------|
-| Spices | 🟠 Orange |
-| Grains & Rice | 🟤 Brown |
-| Sweets & Snacks | 🟡 Tan |
-| Pickles & Chutneys | 🟢 Green |
-| Oils & Ghee | 🟡 Golden |
-| Beverages | 🟤 Coffee |
-| Groceries | 🔵 Blue |
+Supported: `.jpeg`, `.jpg`, `.png`, `.gif`, `.webp`
 
 ### Fallback
 
-If no image is stored in the database or the image fails to load, a placeholder emoji (🛍️) is shown instead. The `onError` handler on the `<img>` tag gracefully falls back.
+If no image is stored or loading fails, a placeholder emoji (🛍️) is displayed. The `onError` handler on the `<img>` tag gracefully falls back.
 
 ---
 
@@ -462,7 +458,12 @@ pm2 start server/index.js --name shriram-traders
 | `npm run preview` | Preview production build locally |
 | `npm run seed` | Read `KetanShop.xlsx` and seed Turso DB |
 | `npm run db:stats` | Show DB statistics (product count, categories, image info) |
-| `node scripts/generate-placeholder-images.js` | Generate category-colored placeholder images for products without photos |
+| `node scripts/cleanup-db.js` | Re-sequence product IDs, clean product names, regenerate Marathi names |
+| `node scripts/download-product-images.js` | Download real product photos from Unsplash for all products |
+| `node scripts/update-marathi-names.js` | Re-generate Marathi names using improved transliterator |
+| `node scripts/build-word-map.js` | Rebuild wordMap.js from marathi_transliteration_dataset.jsonl |
+| `node scripts/merge-training-data.js` | Merge .txt training files into JSONL dataset and rebuild wordMap |
+| `node scripts/generate-placeholder-images.js` | Generate category-colored placeholder images |
 
 ---
 
@@ -491,12 +492,12 @@ The following optimizations are in place:
 | Optimization | Location | Details |
 |-------------|----------|--------|
 | **Image Compression** | `server/compressImage.js` | Sharp resizes to 600px max, converts to WebP at 85% quality. Applied during seed, import, and product create/update. |
+| **Inline Image Data URIs** | `server/app.js`, `ProductCard.jsx` | Images embedded as base64 data URIs directly in the products list API response — zero additional HTTP requests, instant render. |
 | **Server-side Pagination** | `server/app.js` | 20 products per page with `LIMIT/OFFSET`. Reduces initial payload. |
-| **Separated Image Loading** | `GET /api/products/:id/image` | Product list doesn't include base64 images — loaded on-demand via dedicated endpoint. |
 | **In-memory API Cache** | `server/app.js` | 5-second TTL cache for product list responses. Prevents redundant DB queries. |
 | **7-day Browser Cache** | Image endpoint | `Cache-Control: public, max-age=604800` with `?v=updated_at` for cache busting. |
 | **Native Lazy Loading** | `ProductCard.jsx` | `loading="lazy"` defers offscreen images. |
-| **Image Prefetching** | `ProductGrid.jsx` | `<link rel="preload">` injected for newly loaded products' images. |
+| **Category Loading Animation** | `ProductGrid.jsx`, `index.css` | Pulse effect + spinner on existing products during category/filter switches for instant visual feedback. |
 | **Infinite Scroll** | `ProductGrid.jsx` | `IntersectionObserver` with 200px rootMargin triggers next page load. |
 | **Code Splitting** | `App.jsx` | `React.lazy()` + `Suspense` for AdminPage — admin code loads only when visiting `/admin`. |
 | **Skeleton Loading** | `ProductGrid.jsx` | Shimmer animation cards during initial load and load-more states. |
@@ -509,22 +510,40 @@ The following optimizations are in place:
 
 ## 🌐 Marathi Transliteration
 
-The `src/utils/transliterate.js` module provides an English-to-Marathi (Devanagari) conversion engine:
+The `src/utils/transliterate.js` module provides an English-to-Marathi (Devanagari) conversion engine using a 3-tier approach:
 
-- **Lookup table (WORD_MAP):** Known words and common product names are mapped directly to their Marathi equivalents (e.g., `"chikki"` → `"चिक्की"`, `"basmati"` → `"बासमती"`)
-- **Rule-based engine:** Unknown words are transliterated character-by-character using consonant and vowel mappings
-- **Anusvara support:** Handles the nasalization mark (ं) when 'n' or 'm' precedes a consonant
-- **Fallback:** When Marathi mode is selected but no Marathi name exists, it auto-converts from English
+### Tier 1: FALLBACK_MAP (built-in, ~100 entries)
+Covers common product words and phrases that need semantic translation rather than phonetic transliteration (e.g., `"turmeric powder"` → `"हळद पूड"`, `"cow ghee"` → `"गायीचे तूप"`). Loaded instantly — no async import needed.
 
-### Adding Words to the Lookup Table
+### Tier 2: WORD_MAP (auto-generated, 158,553 entries)
+A comprehensive lookup table generated from the training dataset via `scripts/build-word-map.js`. Includes exact English→Marathi pairs for grocery products, UI text, spices, customer service phrases, and business terms. Dynamically imported (not bundled) to keep the frontend JS small.
 
-Edit `src/utils/transliterate.js` and add entries to the `WORD_MAP` object:
+### Tier 3: Rule-based engine (fallback)
+Unknown words are transliterated character-by-character using consonant and vowel mappings, with anusvara (ं) support for nasalization marks.
 
-```js
-const WORD_MAP = {
-  'new product': 'नवीन उत्पादन',
-  // ...
-}
+### Training Data
+
+The transliterator is trained on a dataset of 158,553 English→Marathi pairs from multiple domains:
+- **UI & Website text** (10K pairs)
+- **Grocery product names** (10K pairs)
+- **Spices & Masalas** (10K pairs)
+- **Customer service phrases** (10K pairs)
+- **Business & SEO terms** (10K pairs)
+- **5x Shriram Training Parts** (50K pairs)
+- **Original base dataset** (98K pairs)
+
+### Adding Training Data
+
+1. Add tab-separated `.txt` files (English\tMarathi) to the `public/` directory
+2. Run the merge script:
+```bash
+node scripts/merge-training-data.js
+```
+This merges new data into `marathi_transliteration_dataset.jsonl` (existing entries take priority), then auto-rebuilds `src/utils/wordMap.js`.
+
+### Rebuilding the Word Map Manually
+```bash
+node scripts/build-word-map.js
 ```
 
 ---

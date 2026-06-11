@@ -56,6 +56,9 @@ const translations = {
 
     // Load More
     loadMore: 'Load More',
+
+    // Loading
+    loading: 'Loading...',
   },
   mr: {
     // Header
@@ -122,6 +125,9 @@ const translations = {
 
     // Load More
     loadMore: 'अधिक लोड करा',
+
+    // Loading
+    loading: 'लोड होत आहे...',
   },
 }
 
