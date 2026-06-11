@@ -18,28 +18,12 @@ function SkeletonCard() {
   )
 }
 
-/** Prefetch a list of image URLs by injecting <link rel="prefetch"> tags into the document head */
-function prefetchImages(products) {
-  if (!products || products.length === 0) return
-  const fragment = document.createDocumentFragment()
-  products.forEach((product) => {
-    if (!product.id) return
-    const link = document.createElement('link')
-    link.rel = 'preload'
-    link.as = 'image'
-    link.href = `/api/products/${product.id}/image?v=${encodeURIComponent(product.updated_at || '0')}`
-    fragment.appendChild(link)
-    // The links will be cleaned up after they load or after a timeout
-    setTimeout(() => { if (link.parentNode) link.parentNode.removeChild(link) }, 5000)
-  })
-  document.head.appendChild(fragment)
-}
-
 export default function ProductGrid({
   products,
   loading,
   loadingMore,
   error,
+  totalCount,
   hasMore,
   lang,
   t,
@@ -48,16 +32,6 @@ export default function ProductGrid({
   loadMore,
 }) {
   const sentinelRef = useRef(null)
-  const prevProductCount = useRef(0)
-
-  // When new products arrive, prefetch their images immediately
-  useEffect(() => {
-    if (products.length > prevProductCount.current) {
-      const newProducts = products.slice(prevProductCount.current)
-      prefetchImages(newProducts)
-    }
-    prevProductCount.current = products.length
-  }, [products])
 
   // IntersectionObserver for infinite scroll — triggers loadMore when sentinel is visible
   useEffect(() => {
@@ -101,7 +75,7 @@ export default function ProductGrid({
     <>
       <div className="products-toolbar">
         <p className="products-count">
-          <strong>{toMarathiNumerals(products.length, lang)}</strong> {t('productsFound')}
+          <strong>{toMarathiNumerals(totalCount, lang)}</strong> {t('productsFound')}
         </p>
         <div className="sort-control">
           <label htmlFor="sort">{t('sortBy')}:</label>

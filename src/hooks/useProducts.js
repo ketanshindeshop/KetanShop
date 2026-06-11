@@ -9,6 +9,7 @@ export function useProducts() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState(null)
   const [page, setPage] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
   const [hasMore, setHasMore] = useState(false)
 
@@ -55,6 +56,7 @@ export function useProducts() {
       if (data.success) {
         setProducts(data.products)
         setCategories(data.categories)
+        setTotalCount(data.total || 0)
         setTotalPages(data.totalPages || 1)
         setHasMore(data.hasMore || false)
       } else {
@@ -86,6 +88,7 @@ export function useProducts() {
       if (gen !== generationRef.current) return // discard stale response
       if (data.success) {
         setProducts((prev) => [...prev, ...data.products])
+        setTotalCount(data.total || 0)
         setTotalPages(data.totalPages || 1)
         setHasMore(data.hasMore || false)
         setPage(nextPage)
@@ -141,6 +144,7 @@ export function useProducts() {
     loading,
     loadingMore,
     error,
+    totalCount,
     hasMore,
     search,
     setSearch,

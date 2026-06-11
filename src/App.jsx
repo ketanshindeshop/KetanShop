@@ -56,6 +56,7 @@ function MainShop() {
     loading,
     loadingMore,
     error,
+    totalCount,
     hasMore,
     search,
     setSearch,
@@ -134,6 +135,7 @@ function MainShop() {
                 loading={loading}
                 loadingMore={loadingMore}
                 error={error}
+                totalCount={totalCount}
                 hasMore={hasMore}
                 lang={lang}
                 t={t}

@@ -125,8 +125,8 @@ app.get('/api/products', async (req, res) => {
     const total = Number(countResult.rows[0]?.cnt || 0);
     const totalPages = Math.ceil(total / limitNum);
 
-    // Fetch a page of products (no image_data — loaded separately via /api/products/:id/image)
-    const sql = `SELECT id, product_name, product_name_mr, price, image_path, category, availability, sort_order, created_at, updated_at FROM products ${where} ORDER BY ${safeSort} ${safeDir} LIMIT ? OFFSET ?`;
+    // Fetch a page of products (include image_data for instant data-URI rendering)
+    const sql = `SELECT id, product_name, product_name_mr, price, image_path, image_data, image_type, category, availability, sort_order, created_at, updated_at FROM products ${where} ORDER BY ${safeSort} ${safeDir} LIMIT ? OFFSET ?`;
     const result = await query(sql, [...params, limitNum, offset]);
 
     // For categories, show all categories when admin fetches all

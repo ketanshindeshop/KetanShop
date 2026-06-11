@@ -9,9 +9,16 @@ const ProductCard = memo(function ProductCard({ product, lang, t }) {
     ? product.product_name_mr
     : toMarathi(product.product_name, lang)
 
-  // Fetch image from the API endpoint on-demand.
-  // Native loading="lazy" combined with 7-day Cache-Control ensures efficient loading.
-  const imageSrc = product.id ? `/api/products/${product.id}/image?v=${encodeURIComponent(product.updated_at || '0')}` : null
+  // Use inline data URI from the API response for instant image rendering.
+  // Images are embedded directly in the products list JSON — zero additional HTTP requests.
+  // Falls back to the separate endpoint only when inline data isn't available.
+  const dataUri = product.image_data
+    ? `data:${product.image_type || 'image/webp'};base64,${product.image_data}`
+    : null
+  const fallbackSrc = product.id && !dataUri
+    ? `/api/products/${product.id}/image?v=${encodeURIComponent(product.updated_at || '0')}`
+    : null
+  const imageSrc = dataUri || fallbackSrc
   const showImg = !imgError && !!imageSrc
 
   const availabilityClass =
