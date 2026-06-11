@@ -1,0 +1,2 @@
+Order Confirmed	ऑर्डरची पुष्टी झाली
+Track Order	ऑर्डरचा मागोवा घ्या
