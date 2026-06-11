@@ -61,8 +61,9 @@ ShriramTraders/
 ├── public/                       # Static assets (served as-is by Express)
 │
 ├── scripts/
-│   ├── check-db-stats.js         # DB statistics utility
-│   └── recompress-images.js      # Bulk image re-compression script
+│   ├── check-db-stats.js              # DB statistics utility
+│   ├── generate-placeholder-images.js # SVG → WebP placeholder generator
+│   └── recompress-images.js           # Bulk image re-compression script
 │
 ├── server/
 │   ├── db.js                     # Turso DB connection (singleton)
@@ -353,6 +354,34 @@ Product: "Kashmiri Garlic Black"
 
 Supported extensions: `.jpeg`, `.jpg`, `.png`, `.gif`, `.webp`
 
+### Placeholder Images
+
+When no real product photo is available, the system can generate **category-colored placeholder images** with the product name overlaid. These are stored in the database just like real photos.
+
+#### Generating Placeholders
+
+```bash
+node scripts/generate-placeholder-images.js
+```
+
+This script:
+1. Finds all products without images
+2. Generates an SVG placeholder with a category-themed gradient background (each category has its own color — Spices are orange, Grains are brown, etc.)
+3. Renders the SVG to WebP via Sharp (~3-7 KB per image)
+4. Stores the resulting image directly in the `image_data` column
+
+#### Category Colors
+
+| Category | Background |
+|----------|-----------|
+| Spices | 🟠 Orange |
+| Grains & Rice | 🟤 Brown |
+| Sweets & Snacks | 🟡 Tan |
+| Pickles & Chutneys | 🟢 Green |
+| Oils & Ghee | 🟡 Golden |
+| Beverages | 🟤 Coffee |
+| Groceries | 🔵 Blue |
+
 ### Fallback
 
 If no image is stored in the database or the image fails to load, a placeholder emoji (🛍️) is shown instead. The `onError` handler on the `<img>` tag gracefully falls back.
@@ -433,6 +462,7 @@ pm2 start server/index.js --name shriram-traders
 | `npm run preview` | Preview production build locally |
 | `npm run seed` | Read `KetanShop.xlsx` and seed Turso DB |
 | `npm run db:stats` | Show DB statistics (product count, categories, image info) |
+| `node scripts/generate-placeholder-images.js` | Generate category-colored placeholder images for products without photos |
 
 ---
 
