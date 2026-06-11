@@ -21,27 +21,60 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-/* ─────── Simple in-memory cache ─────── */
-const cache = new Map();
-const CACHE_TTL = 5000; // 5 seconds — short enough to stay fresh, long enough for repeated renders
+/* ─────── In-memory caches ─────── */
 
-function getCached(key) {
-  const entry = cache.get(key);
+// Response cache for /api/products — short TTL to keep paginated lists fresh
+const productListCache = new Map();
+const PRODUCT_LIST_TTL = 10000; // 10 seconds
+
+function getProductListCached(key) {
+  const entry = productListCache.get(key);
   if (!entry) return null;
   if (Date.now() > entry.expiry) {
-    cache.delete(key);
+    productListCache.delete(key);
     return null;
   }
   return entry.data;
 }
 
-function setCache(key, data) {
-  cache.set(key, { data, expiry: Date.now() + CACHE_TTL });
-  // Evict oldest entries if cache grows too large
-  if (cache.size > 50) {
-    const oldest = cache.entries().next().value;
-    if (oldest) cache.delete(oldest[0]);
+function setProductListCache(key, data) {
+  productListCache.set(key, { data, expiry: Date.now() + PRODUCT_LIST_TTL });
+  if (productListCache.size > 100) {
+    const oldest = productListCache.entries().next().value;
+    if (oldest) productListCache.delete(oldest[0]);
   }
+}
+
+// Image buffer cache — decoded from base64 and cached in memory for instant serving.
+// Images change rarely (only on admin edit), so we cache indefinitely until invalidation.
+const imageCache = new Map();
+
+function getCachedImage(productId) {
+  const entry = imageCache.get(productId);
+  if (entry) return entry;
+  return null;
+}
+
+function setCachedImage(productId, data) {
+  imageCache.set(productId, data);
+  // Cap at 200 entries (well above our 56 products)
+  if (imageCache.size > 200) {
+    const oldest = imageCache.entries().next().value;
+    if (oldest) imageCache.delete(oldest[0]);
+  }
+}
+
+// Cache expiry for images (re-check DB every 5 minutes to pick up admin edits)
+const IMAGE_CACHE_TTL = 5 * 60 * 1000;
+const imageCacheTime = new Map();
+
+function isImageCacheFresh(productId) {
+  const cached = imageCacheTime.get(productId);
+  return cached && (Date.now() - cached) < IMAGE_CACHE_TTL;
+}
+
+function markImageCached(productId) {
+  imageCacheTime.set(productId, Date.now());
 }
 
 /* ─────── Helper: Check admin auth ─────── */
@@ -54,9 +87,11 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-/** Clear the in-memory cache so fresh product data is served after any change */
+/** Clear all in-memory caches so fresh data is served after any change */
 function invalidateCache() {
-  cache.clear();
+  productListCache.clear();
+  imageCache.clear();
+  imageCacheTime.clear();
 }
 
 /* ─────── PUBLIC API ─────── */
@@ -75,13 +110,17 @@ app.get('/api/products', async (req, res) => {
       limit = '20',
     } = req.query;
 
+    // Admin requests (show_all=true) skip pagination — return all products
+    const isAdminRequest = req.query.show_all === 'true';
+    const limitNum = isAdminRequest
+      ? 9999  // effectively unlimited
+      : Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
-    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
     const offset = (pageNum - 1) * limitNum;
 
     // Build a cache key from the query parameters
     const cacheKey = req.originalUrl;
-    const cached = getCached(cacheKey);
+    const cached = getProductListCached(cacheKey);
     if (cached) {
       res.setHeader('X-Cache', 'HIT');
       return res.json(cached);
@@ -125,8 +164,8 @@ app.get('/api/products', async (req, res) => {
     const total = Number(countResult.rows[0]?.cnt || 0);
     const totalPages = Math.ceil(total / limitNum);
 
-    // Fetch a page of products (include image_data for instant data-URI rendering)
-    const sql = `SELECT id, product_name, product_name_mr, price, image_path, image_data, image_type, category, availability, sort_order, created_at, updated_at FROM products ${where} ORDER BY ${safeSort} ${safeDir} LIMIT ? OFFSET ?`;
+    // Fetch a page of products (no image_data — images loaded separately via /api/products/:id/image)
+    const sql = `SELECT id, product_name, product_name_mr, price, category, availability, sort_order, created_at, updated_at FROM products ${where} ORDER BY ${safeSort} ${safeDir} LIMIT ? OFFSET ?`;
     const result = await query(sql, [...params, limitNum, offset]);
 
     // For categories, show all categories when admin fetches all
@@ -153,9 +192,9 @@ app.get('/api/products', async (req, res) => {
       hasMore: pageNum < totalPages,
     };
 
-    setCache(cacheKey, response);
+    setProductListCache(cacheKey, response);
     res.setHeader('X-Cache', 'MISS');
-    res.setHeader('Cache-Control', 'public, max-age=5');
+    res.setHeader('Cache-Control', 'public, max-age=10');
     res.json(response);
   } catch (error) {
     console.error('❌ API Error:', error);
@@ -176,15 +215,31 @@ app.get('/api/products/:id', async (req, res) => {
   }
 });
 
-// GET /api/products/:id/image - Serve the product image (decoded from DB base64)
+// GET /api/products/:id/image - Serve the product image (decoded from DB base64, cached in memory)
 app.get('/api/products/:id/image', async (req, res) => {
   try {
-    const result = await query('SELECT image_data, image_type FROM products WHERE id = ?', [req.params.id]);
+    const productId = req.params.id;
+
+    // Check in-memory cache first
+    const cached = getCachedImage(productId);
+    if (cached && isImageCacheFresh(productId)) {
+      res.setHeader('Content-Type', cached.mime);
+      res.setHeader('Cache-Control', 'public, max-age=604800');
+      res.setHeader('Content-Length', cached.buffer.length);
+      return res.end(cached.buffer);
+    }
+
+    const result = await query('SELECT image_data, image_type, updated_at FROM products WHERE id = ?', [productId]);
     if (result.rows.length === 0 || !result.rows[0].image_data) {
       return res.status(404).end();
     }
     const { image_data, image_type } = result.rows[0];
     const imgBuffer = Buffer.from(image_data, 'base64');
+
+    // Cache in memory for instant serving on subsequent requests
+    setCachedImage(productId, { buffer: imgBuffer, mime: image_type || 'image/jpeg', updatedAt: result.rows[0].updated_at });
+    markImageCached(productId);
+
     res.setHeader('Content-Type', image_type || 'image/jpeg');
     // Cache images for 7 days. Browser cache is busted via ?v=updated_at query param.
     res.setHeader('Cache-Control', 'public, max-age=604800');
@@ -454,6 +509,28 @@ app.get('/api/admin/sample-excel', async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
+/**
+ * Warm up the in-memory image cache by loading all product images on startup.
+ * This eliminates DB queries + base64 decode latency on the first image request.
+ */
+export async function warmupImageCache() {
+  try {
+    const result = await query(
+      "SELECT id, image_data, image_type FROM products WHERE image_data IS NOT NULL AND image_data != ''"
+    );
+    let loaded = 0;
+    for (const row of result.rows) {
+      const imgBuffer = Buffer.from(row.image_data, 'base64');
+      setCachedImage(row.id, { buffer: imgBuffer, mime: row.image_type || 'image/webp' });
+      markImageCached(row.id);
+      loaded++;
+    }
+    console.log(`🖼️  Pre-loaded ${loaded} product images into memory cache`);
+  } catch (err) {
+    console.warn('⚠️  Failed to warm up image cache:', err.message);
+  }
+}
 
 // ─────── Warm up the word map for better first-call accuracy ───────
 getWordMap().catch(() => {});

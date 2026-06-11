@@ -29,7 +29,12 @@
 | **Disabled Products** | Products can be hidden from customers entirely (stay in DB, not shown) |
 | **Stock Badge** | Each product shows "In Stock" (green) or "Out of Stock" (red) |
 | **Image Fallback** | Products without images show a 🛍️ placeholder |
-| **Instant Image Load** | Images embedded as data URIs in API response — zero extra HTTP requests |
+| **Separate Image Endpoint** | Images served via `/api/products/:id/image` — keeps JSON payload tiny (~5KB per page) |
+| **Server Image Cache** | All 56 images pre-loaded into server memory on startup — first request served instantly, no DB query |
+| **7-Day Browser Cache** | Images cached by browser for 7 days, busted via `?v=updated_at` on edit |
+| **Eager Image Loading** | No `loading="lazy"` — images load immediately when DOM renders |
+| **JS Preloading** | All first-page images preloaded via `new Image()` right after API response |
+| **Placeholder Overlay** | Emoji placeholder overlays image area with absolute positioning, fades out smoothly on load |
 | **Real Product Photos** | All 56 products have real Unsplash photos (compressed WebP) |
 | **Loading Animation** | Pulse effect + spinner on existing products during category/filter switches |
 | **Correct Product Count** | Shows total DB count (56) instead of current page count (20) |
@@ -92,8 +97,12 @@
 | Feature | Details |
 |---------|---------|
 | **Database Storage** | Images stored as base64 WebP in `image_data` column |
-| **Inline Data URIs** | Images embedded in products list API response — instant render, zero extra HTTP requests |
-| **API Serving** | `GET /api/products/:id/image` fallback endpoint with 7-day Cache-Control |
+| **Separate HTTP Endpoint** | Images served via `GET /api/products/:id/image` — keeps JSON payload tiny (~5KB per page) |
+| **Server Memory Cache** | All images pre-loaded into memory on startup (`warmupImageCache()`). 5-min auto-refresh safety net. |
+| **7-Day Browser Cache** | `Cache-Control: public, max-age=604800` with `?v=updated_at` cache busting |
+| **Eager Loading** | No `loading="lazy"` — images load immediately when DOM renders |
+| **JS Preloading** | All first-page images preloaded via `new Image()` after API response |
+| **Placeholder Overlay** | Emoji placeholder uses `position: absolute; inset: 0` to overlay image, fades out on load |
 | **Real Photos** | All 56 products have real Unsplash photos (~20-68 KB WebP each) |
 | **Unsplash Download** | `node scripts/download-product-images.js` downloads and compresses product photos |
 | **Cache Busting** | Image URLs include `updated_at` timestamp to force refresh after edits |

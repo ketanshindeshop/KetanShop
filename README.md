@@ -35,7 +35,8 @@ An Indian grocery e-commerce website built with **React + Vite** (frontend) and 
 | **Database** | Turso (libSQL — SQLite-compatible edge DB) |
 | **DB Client** | `@libsql/client` |
 | **Excel** | `xlsx` (SheetJS) |
-| **Image Storage** | Stored as base64 in DB, served inline as data URIs in product list API |
+| **Image Storage** | Stored as base64 WebP in DB, served via dedicated `/api/products/:id/image` endpoint with 7-day browser cache |
+| **Image Cache** | Server in-memory buffer cache (warmed on startup, 5-min auto-refresh) |
 | **File Upload** | `multer` (Excel import, memory storage) |
 | **Language** | English + Marathi (bilingual UI) |
 | **Styling** | Plain CSS with CSS custom properties |
@@ -171,14 +172,18 @@ npm run dev:all
 | **📱 Responsive** | Mobile-friendly — sidebar collapses, grid adapts, mobile hamburger menu |
 | **🔄 Sorting** | Default, Price (Low→High / High→Low), Name |
 | **🏷️ Brand** | Shriram Traders throughout |
-| **🖼️ Product Images** | Real Unsplash photos stored in DB, served inline as data URIs (instant load) |
+| **🖼️ Product Images** | Real Unsplash photos stored as base64 WebP in DB, served via dedicated HTTP endpoint with 7-day browser cache + server memory cache |
 | **📦 Stock Status** | Shows "In Stock" / "Out of Stock" / "Disabled" on each product |
 | **♾️ Infinite Scroll** | IntersectionObserver-based auto-loading with 200px offset |
 | **🦴 Skeleton Loading** | Shimmer animation placeholders while products load |
 | **🎬 Loading Animation** | Pulse effect + spinner during category/filter switches for instant visual feedback |
 | **✅ Correct Product Count** | Shows total DB count (56) instead of current page count (20) |
 | **📦 Image Compression** | Images resized to 600px max, converted to WebP at 85% quality via Sharp |
-| **⚡ Native Image Lazy Loading** | `loading="lazy"` defers offscreen images |
+| **⚡ Image Server Cache** | All 56 images pre-loaded into server memory on startup — first request served instantly, no DB query |
+| **⚡ Image Browser Cache** | 7-day `Cache-Control` with `?v=updated_at` cache busting — subsequent loads instant |
+| **⚡ Eager Image Loading** | No `loading="lazy"` — images load immediately when DOM renders |
+| **⚡ JS Preloading** | All first-page images preloaded via `new Image()` right after API response arrives |
+| **⚡ Placeholder Overlay** | Emoji placeholder overlays the image area with absolute positioning, fades out smoothly on image load |
 | **🔄 Smooth Scrolling** | Lenis-powered smooth scroll for polished UX |
 
 ### Admin Panel (`/admin`)
@@ -343,9 +348,25 @@ Products in the same category share a category-appropriate photo (e.g., all spic
 
 ### How Images Are Served
 
-Images are served **inline as data URIs** directly in the products list API response — zero additional HTTP requests. The product list endpoint includes `image_data` and `image_type` fields, and the frontend constructs `data:image/webp;base64,...` URIs for instant rendering.
+Images are served via a **dedicated HTTP endpoint** `GET /api/products/:id/image` with **7-day browser cache** (`Cache-Control: public, max-age=604800`). The product list API does **not** include `image_data` — keeping JSON payloads tiny (~5 KB per page).
 
-A fallback endpoint `GET /api/products/:id/image` is also available (decodes base64, returns raw bytes with 7-day Cache-Control). Used for admin panel and cache busting.
+**Server-side:**
+- On startup, `warmupImageCache()` loads all 56 images into an in-memory buffer cache (decoded from base64)
+- Image requests are served from memory — **no DB query, no base64 decode** on the critical path
+- The image cache has a 5-minute TTL as a safety net for admin edits
+- Any admin write operation immediately invalidates all caches via `invalidateCache()`
+
+**Client-side:**
+- All first-page images are preloaded via JavaScript `Image()` objects as soon as the API response arrives
+- No `loading="lazy"` — images start loading immediately when the DOM renders
+- A placeholder emoji (🛍️) overlays the image area with absolute positioning, fading out smoothly when the image loads
+- Browser cache is busted via `?v=updated_at` query parameter when an image is edited
+
+**Typical first-load timeline:**
+1. JSON payload (~5KB) downloads in ~50-100ms
+2. Product cards render with placeholder emojis immediately
+3. All 20 images load in parallel via HTTP/2, completing within ~200-500ms
+4. On subsequent visits, images load instantly from browser cache
 
 If no image is stored or the image fails to load, a placeholder emoji (🛍️) is shown instead.
 
@@ -492,11 +513,14 @@ The following optimizations are in place:
 | Optimization | Location | Details |
 |-------------|----------|--------|
 | **Image Compression** | `server/compressImage.js` | Sharp resizes to 600px max, converts to WebP at 85% quality. Applied during seed, import, and product create/update. |
-| **Inline Image Data URIs** | `server/app.js`, `ProductCard.jsx` | Images embedded as base64 data URIs directly in the products list API response — zero additional HTTP requests, instant render. |
+| **Separate Image Endpoint** | `server/app.js`, `ProductCard.jsx` | Images served via `/api/products/:id/image` instead of inline base64 — keeps JSON payloads tiny (~5KB per page). |
+| **Server Image Cache** | `server/app.js` | All images pre-loaded into memory on startup (`warmupImageCache()`). Subsequent requests served from memory — no DB query. 5-minute TTL as safety net. |
 | **Server-side Pagination** | `server/app.js` | 20 products per page with `LIMIT/OFFSET`. Reduces initial payload. |
-| **In-memory API Cache** | `server/app.js` | 5-second TTL cache for product list responses. Prevents redundant DB queries. |
+| **In-memory API Cache** | `server/app.js` | 10-second TTL cache for product list responses. Prevents redundant DB queries. |
 | **7-day Browser Cache** | Image endpoint | `Cache-Control: public, max-age=604800` with `?v=updated_at` for cache busting. |
-| **Native Lazy Loading** | `ProductCard.jsx` | `loading="lazy"` defers offscreen images. |
+| **Eager Image Loading** | `ProductCard.jsx` | No `loading="lazy"` — images load immediately when DOM renders. |
+| **JS Image Preloading** | `useProducts.js` | All first-page images preloaded via `new Image()` right after API response arrives. |
+| **Placeholder Overlay** | `ProductCard.jsx`, `index.css` | Emoji placeholder uses `position: absolute; inset: 0` to overlay the image, fading out smoothly on load. |
 | **Category Loading Animation** | `ProductGrid.jsx`, `index.css` | Pulse effect + spinner on existing products during category/filter switches for instant visual feedback. |
 | **Infinite Scroll** | `ProductGrid.jsx` | `IntersectionObserver` with 200px rootMargin triggers next page load. |
 | **Code Splitting** | `App.jsx` | `React.lazy()` + `Suspense` for AdminPage — admin code loads only when visiting `/admin`. |

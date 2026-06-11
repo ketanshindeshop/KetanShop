@@ -2,6 +2,18 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 
 const PAGE_LIMIT = 20
 
+/**
+ * Preload product images by creating Image objects.
+ * Once cached by the browser (7-day Cache-Control), subsequent renders are instant.
+ */
+function preloadImages(products) {
+  for (const product of products) {
+    if (!product.id) continue
+    const img = new Image()
+    img.src = `/api/products/${product.id}/image?v=${encodeURIComponent(product.updated_at || '0')}`
+  }
+}
+
 export function useProducts() {
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
@@ -59,6 +71,11 @@ export function useProducts() {
         setTotalCount(data.total || 0)
         setTotalPages(data.totalPages || 1)
         setHasMore(data.hasMore || false)
+
+        // Preload ALL first-page product images so they render immediately.
+        // The server warms images into memory on startup, and the image endpoint
+        // has 7-day Cache-Control headers, so subsequent visits are instant.
+        preloadImages(data.products)
       } else {
         setError(data.error)
       }

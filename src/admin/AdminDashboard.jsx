@@ -15,7 +15,7 @@ export default function AdminDashboard({ secret, refreshKey, onRefresh }) {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/products?sort=sort_order&dir=asc&show_all=true')
+      const res = await fetch('/api/products?sort=sort_order&dir=asc&show_all=true&limit=9999')
       const data = await res.json()
       if (data.success) {
         setProducts(data.products)
