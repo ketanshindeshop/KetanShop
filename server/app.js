@@ -165,10 +165,13 @@ app.get('/api/products', async (req, res) => {
     const totalPages = Math.ceil(total / limitNum);
 
     // Fetch a page of products.
-    // For public requests, include image_data so the client can render instantly
-    // via blob URLs instead of a waterfall of 20+ individual image HTTP requests.
-    // For admin requests (show_all=true), skip image_data to keep the payload lean.
-    const selectCols = 'id, product_name, product_name_mr, price, category, availability, sort_order, created_at, updated_at';
+    // Hybrid approach: first page includes image_data inline for instant rendering;
+    // subsequent pages (infinite scroll) skip it to keep payload lean — the client
+    // falls back to lazy-loading via /api/products/:id/image.
+    // Admin requests (show_all=true) always skip image_data to keep the table lean.
+    const baseCols = 'id, product_name, product_name_mr, price, category, availability, sort_order, created_at, updated_at, LENGTH(image_data) as image_size';
+    const inlineImages = !isAdminRequest && pageNum === 1;
+    const selectCols = inlineImages ? `${baseCols}, image_data, image_type` : baseCols;
     const sql = `SELECT ${selectCols} FROM products ${where} ORDER BY ${safeSort} ${safeDir} LIMIT ? OFFSET ?`;
     const result = await query(sql, [...params, limitNum, offset]);
 
@@ -198,7 +201,10 @@ app.get('/api/products', async (req, res) => {
 
     setProductListCache(cacheKey, response);
     res.setHeader('X-Cache', 'MISS');
-    res.setHeader('Cache-Control', 'public, max-age=10');
+    // Vercel CDN caches the response at edge locations for 1 hour.
+    // stale-while-revalidate serves cached instantly while refreshing in background,
+    // so returning visitors get sub-millisecond response from the nearest edge.
+    res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
     res.json(response);
   } catch (error) {
     console.error('❌ API Error:', error);
@@ -245,8 +251,9 @@ app.get('/api/products/:id/image', async (req, res) => {
     markImageCached(productId);
 
     res.setHeader('Content-Type', image_type || 'image/jpeg');
-    // Cache images for 7 days. Browser cache is busted via ?v=updated_at query param.
-    res.setHeader('Cache-Control', 'public, max-age=604800');
+    // Cache images at Vercel edge for 7 days. Browser cache busted via ?v=updated_at.
+    // s-maxage tells Vercel CDN to cache at edge; subsequent requests hit the nearest edge.
+    res.setHeader('Cache-Control', 'public, s-maxage=604800, max-age=604800');
     res.setHeader('Content-Length', imgBuffer.length);
     res.end(imgBuffer);
   } catch (error) {

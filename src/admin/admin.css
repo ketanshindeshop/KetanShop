@@ -327,6 +327,11 @@
   padding: 40px !important;
 }
 
+.admin-size-empty {
+  color: #c0bfc6;
+  font-size: 0.8rem;
+}
+
 /* Admin table cells */
 .admin-thumb {
   width: 48px;

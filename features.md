@@ -29,12 +29,15 @@
 | **Disabled Products** | Products can be hidden from customers entirely (stay in DB, not shown) |
 | **Stock Badge** | Each product shows "In Stock" (green) or "Out of Stock" (red) |
 | **Image Fallback** | Products without images show a 🛍️ placeholder |
-| **Separate Image Endpoint** | Images served via `/api/products/:id/image` — keeps JSON payload tiny (~5KB per page) |
-| **Server Image Cache** | All 56 images pre-loaded into server memory on startup — first request served instantly, no DB query |
-| **7-Day Browser Cache** | Images cached by browser for 7 days, busted via `?v=updated_at` on edit |
-| **Eager Image Loading** | No `loading="lazy"` — images load immediately when DOM renders |
-| **JS Preloading** | All first-page images preloaded via `new Image()` right after API response |
-| **Placeholder Overlay** | Emoji placeholder overlays image area with absolute positioning, fades out smoothly on load |
+| **Inline Images (Page 1)** | First 20 product images embedded as `data:` URIs in JSON response — zero extra HTTP requests, instant render |
+| **Hybrid Lazy Loading** | Page 1 = inline images; pages 2+ = lazy `/api/products/:id/image` endpoint to keep payload lean |
+| **Vercel CDN Edge Cache** | API response cached at edge for 1 hour (`s-maxage=3600`) with `stale-while-revalidate=86400` — sub-ms for returning visitors |
+| **Image CDN Cache** | Individual images cached at Vercel edge for 7 days (`s-maxage=604800`) |
+| **Immutable Asset Caching** | Vite-built assets with `max-age=31536000, immutable` |
+| **Client-Side Compression** | Images compressed in-browser via Canvas API (400px WebP, 70% quality) before upload — works on Vercel |
+| **Accurate MIME Fallback** | `detectMimeFromBuffer()` detects actual format from magic bytes when Sharp unavailable |
+| **Image Size Display** | Admin dashboard shows per-product image sizes; edit form shows original → compressed size |
+| **Placeholder Overlay** | Emoji placeholder overlays image area, fades out smoothly on load |
 | **Real Product Photos** | All 56 products have real Unsplash photos (compressed WebP) |
 | **Loading Animation** | Pulse effect + spinner on existing products during category/filter switches |
 | **Correct Product Count** | Shows total DB count (56) instead of current page count (20) |

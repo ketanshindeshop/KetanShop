@@ -1,9 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react'
+import { compressFile } from '../utils/clientCompress.js'
 
 export default function ImportExcel({ secret, onImported }) {
   const [file, setFile] = useState(null)
-  const [imageFiles, setImageFiles] = useState([])
+  const [imageFiles, setImageFiles] = useState([])   // compressed files for upload
+  const [previewFiles, setPreviewFiles] = useState([]) // originals for preview (avoid flicker)
   const [importing, setImporting] = useState(false)
+  const [compressing, setCompressing] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
   const [existingCategories, setExistingCategories] = useState([])
@@ -34,21 +37,59 @@ export default function ImportExcel({ secret, onImported }) {
     setError('')
   }
 
-  const handleImagesChange = (e) => {
+  const handleImagesChange = async (e) => {
     const files = Array.from(e.target.files || [])
-    setImageFiles(files)
     setResult(null)
     setError('')
+
+    // Show previews immediately from originals (no flicker)
+    setPreviewFiles(files)
+    setCompressing(true)
+
+    try {
+      // Compress all selected images client-side in parallel
+      const compressed = await Promise.allSettled(
+        files.map((f) => compressFile(f))
+      )
+      const compressedFiles = compressed
+        .filter((r) => r.status === 'fulfilled')
+        .map((r) => {
+          const { blob, fileName } = r.value
+          return new File([blob], fileName, { type: 'image/webp' })
+        })
+
+      if (compressedFiles.length > 0) {
+        setImageFiles(compressedFiles)
+        // Keep preview and image arrays in sync — only show previews for
+        // images that successfully compressed (so remove-by-index stays correct)
+        setPreviewFiles(
+          compressed
+            .map((r, i) => r.status === 'fulfilled' ? files[i] : null)
+            .filter(Boolean)
+        )
+      }
+      
+      const failed = compressed.filter((r) => r.status === 'rejected').length
+      if (failed > 0) {
+        console.warn(`${failed} image(s) could not be compressed, skipped`)
+      }
+    } catch (err) {
+      console.warn('Client-side compression failed:', err.message)
+      setImageFiles(files)
+    } finally {
+      setCompressing(false)
+    }
   }
 
-  // Revoke old blob URLs whenever imageFiles change or component unmounts
+  // Revoke old blob URLs whenever previewFiles change or component unmounts
   useEffect(() => {
-    const urls = imageFiles.map((f) => URL.createObjectURL(f))
+    const urls = previewFiles.map((f) => URL.createObjectURL(f))
     return () => urls.forEach((u) => URL.revokeObjectURL(u))
-  }, [imageFiles])
+  }, [previewFiles])
 
   const removeImage = (index) => {
     setImageFiles((prev) => prev.filter((_, i) => i !== index))
+    setPreviewFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
   const handleImport = async () => {
@@ -78,6 +119,7 @@ export default function ImportExcel({ secret, onImported }) {
         setResult({ success: true, imported: data.imported, imagesImported: data.images_imported || 0, message: data.message })
         setFile(null)
         setImageFiles([])
+        setPreviewFiles([])
         if (fileRef.current) fileRef.current.value = ''
         if (imagesRef.current) imagesRef.current.value = ''
         // Switch to products tab after short delay
@@ -169,13 +211,14 @@ export default function ImportExcel({ secret, onImported }) {
             />
           </div>
 
-          {imageFiles.length > 0 && (
+          {(previewFiles.length > 0 || imageFiles.length > 0) && (
             <div style={{ marginTop: '12px' }}>
               <p className="admin-file-name" style={{ marginBottom: '8px' }}>
-                <strong>{imageFiles.length}</strong> image{imageFiles.length !== 1 ? 's' : ''} selected:
+                <strong>{imageFiles.length || previewFiles.length}</strong> image{((imageFiles.length || previewFiles.length) !== 1) ? 's' : ''} selected:
+                {compressing && <span style={{ color: '#a68b5b', marginLeft: '8px', fontSize: '.75rem' }}>⏳ compressing...</span>}
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                {imageFiles.map((imgFile, idx) => (
+                {previewFiles.map((imgFile, idx) => (
                   <div key={idx} style={{ position: 'relative', textAlign: 'center' }}>
                     <img
                       src={URL.createObjectURL(imgFile)}
@@ -215,9 +258,9 @@ export default function ImportExcel({ secret, onImported }) {
             <button
               className="admin-btn admin-btn-primary"
               onClick={handleImport}
-              disabled={!file || importing}
+              disabled={!file || importing || compressing}
             >
-              {importing ? '⏳ Importing...' : '🚀 Import Products'}
+              {importing ? '⏳ Importing...' : compressing ? '🔄 Compressing...' : '🚀 Import Products'}
             </button>
           </div>
 

@@ -35,8 +35,9 @@ An Indian grocery e-commerce website built with **React + Vite** (frontend) and 
 | **Database** | Turso (libSQL — SQLite-compatible edge DB) |
 | **DB Client** | `@libsql/client` |
 | **Excel** | `xlsx` (SheetJS) |
-| **Image Storage** | Stored as base64 WebP in DB, served via dedicated `/api/products/:id/image` endpoint with 7-day browser cache |
-| **Image Cache** | Server in-memory buffer cache (warmed on startup, 5-min auto-refresh) |
+| **Image Storage** | Stored as base64 WebP in DB — page 1 served inline for instant render, lazy pages served via `/api/products/:id/image` endpoint |
+| **Image Cache** | Vercel CDN edge cache (`s-maxage=3600` + `stale-while-revalidate`) for API responses; 7-day CDN cache for individual images |
+| **Client Compression** | Canvas API — 400px WebP at 70% quality, runs in-browser before upload (works on Vercel where sharp is unavailable) |
 | **File Upload** | `multer` (Excel import, memory storage) |
 | **Language** | English + Marathi (bilingual UI) |
 | **Styling** | Plain CSS with CSS custom properties |
@@ -178,12 +179,14 @@ npm run dev:all
 | **🦴 Skeleton Loading** | Shimmer animation placeholders while products load |
 | **🎬 Loading Animation** | Pulse effect + spinner during category/filter switches for instant visual feedback |
 | **✅ Correct Product Count** | Shows total DB count (56) instead of current page count (20) |
-| **📦 Image Compression** | Images resized to 600px max, converted to WebP at 85% quality via Sharp |
-| **⚡ Image Server Cache** | All 56 images pre-loaded into server memory on startup — first request served instantly, no DB query |
-| **⚡ Image Browser Cache** | 7-day `Cache-Control` with `?v=updated_at` cache busting — subsequent loads instant |
-| **⚡ Eager Image Loading** | No `loading="lazy"` — images load immediately when DOM renders |
-| **⚡ JS Preloading** | All first-page images preloaded via `new Image()` right after API response arrives |
-| **⚡ Placeholder Overlay** | Emoji placeholder overlays the image area with absolute positioning, fades out smoothly on image load |
+| **📦 Image Compression** | Images resized to 400px max, converted to WebP at 70% quality via Sharp (server) or Canvas API (client) |
+| **⚡ Inline Images (Page 1)** | First page product images embedded as `data:` URIs in JSON response — load instantly, zero extra requests |
+| **⚡ Hybrid Lazy Loading** | Page 1 has inline images for instant render; infinite-scroll pages use lazy `/api/products/:id/image` endpoint to keep payload lean |
+| **⚡ Vercel CDN Edge Cache** | API responses cached at edge for 1 hour (`s-maxage=3600`) with `stale-while-revalidate=86400` — sub-ms response for returning visitors globally |
+| **⚡ Image CDN Cache** | Individual images cached at Vercel edge for 7 days (`s-maxage=604800`) |
+| **⚡ Immutable Asset Caching** | Vite-built assets served with `max-age=31536000, immutable` |
+| **⚡ Client-Side Compression** | Images compressed in-browser via Canvas API before upload — eliminates serverless sharp dependency on Vercel |
+| **⚡ Image Size Display** | Admin dashboard shows per-product image sizes; edit form shows original → compressed size with % savings |
 | **🔄 Smooth Scrolling** | Lenis-powered smooth scroll for polished UX |
 
 ### Admin Panel (`/admin`)
@@ -348,48 +351,70 @@ Products in the same category share a category-appropriate photo (e.g., all spic
 
 ### How Images Are Served
 
-Images are served via a **dedicated HTTP endpoint** `GET /api/products/:id/image` with **7-day browser cache** (`Cache-Control: public, max-age=604800`). The product list API does **not** include `image_data` — keeping JSON payloads tiny (~5 KB per page).
+Images use a **hybrid approach:**
 
-**Server-side:**
-- On startup, `warmupImageCache()` loads all 56 images into an in-memory buffer cache (decoded from base64)
-- Image requests are served from memory — **no DB query, no base64 decode** on the critical path
-- The image cache has a 5-minute TTL as a safety net for admin edits
+- **Page 1 (initial viewport):** Product images are included as inline `data:` URIs (`image_data` + `image_type` fields) directly in the API JSON response. This means **zero extra HTTP requests** — images render the moment the API response arrives.
+- **Pages 2+ (infinite scroll):** Only product metadata is returned (no image data). The client lazily loads images via the dedicated `/api/products/:id/image` endpoint. This keeps infinite-scroll payloads lean.
+- **Admin requests** (`show_all=true`): Always skip image data to keep the admin dashboard table fast.
+
+**CDN Edge Caching (Vercel):**
+- Product list API responses are cached at Vercel's global edge CDN for **1 hour** (`s-maxage=3600`) with **`stale-while-revalidate=86400`** — stale cached responses are served instantly while revalidating in background
+- Individual product images are cached at the edge for **7 days** (`s-maxage=604800`)
+- Vite-built assets (with content hashes) are cached with **`max-age=31536000, immutable`**
+- Result: returning visitors get sub-millisecond responses from the nearest edge location, with no serverless function invocation
+
+**Server-side (local development):**
+- On startup, `warmupImageCache()` loads all images into an in-memory buffer cache
 - Any admin write operation immediately invalidates all caches via `invalidateCache()`
 
 **Client-side:**
-- All first-page images are preloaded via JavaScript `Image()` objects as soon as the API response arrives
-- No `loading="lazy"` — images start loading immediately when the DOM renders
+- No `loading="lazy"` — page 1 images are inline, infinite-scroll images use the dedicated endpoint
 - A placeholder emoji (🛍️) overlays the image area with absolute positioning, fading out smoothly when the image loads
-- Browser cache is busted via `?v=updated_at` query parameter when an image is edited
+- If no image is stored or the image fails to load, the placeholder emoji remains visible
 
-**Typical first-load timeline:**
-1. JSON payload (~5KB) downloads in ~50-100ms
-2. Product cards render with placeholder emojis immediately
-3. All 20 images load in parallel via HTTP/2, completing within ~200-500ms
-4. On subsequent visits, images load instantly from browser cache
-
-If no image is stored or the image fails to load, a placeholder emoji (🛍️) is shown instead.
+**Typical load timeline (Vercel, repeat visitor):**
+1. CDN edge serves cached API response with inline images in **~1-5ms**
+2. Product cards render with images instantly — **no separate image requests**
+3. Infinite scroll triggers a lean API call (no images), lazy-loading via `/api/products/:id/image`
 
 ### How Images Get into the Database
 
-There are four ways images end up in the DB:
+There are five ways images end up in the DB:
 
-#### 1. Unsplash Download Script
+#### 1. Admin Product Form (Create/Edit)
+Upload JPEG, PNG, GIF, or WebP via the admin panel. Images are **compressed client-side** (Canvas API, 400px WebP at 70% quality) before being sent to the server — works on Vercel where Sharp is unavailable.
+
+#### 2. Excel Import with Images
+Upload image files alongside the Excel file. The system matches images to products by filename (case-insensitive slug matching). Images are **compressed client-side** before upload.
+
+#### 3. Unsplash Download Script
 ```bash
 node scripts/download-product-images.js
 ```
-Downloads real product photos from Unsplash for all products.
+Downloads real product photos from Unsplash for all products. Compression via Sharp (local only).
 
-#### 2. Seed Script (`npm run seed`)
+#### 4. Seed Script (`npm run seed`)
 Reads `KetanShop.xlsx`, generates a slug from each product name, and looks for matching image files in `public/product_images/`. If found, reads the file, compresses to WebP, and stores in the DB.
 
-#### 3. Admin Product Form (Create/Edit)
-Upload JPEG, PNG, GIF, or WebP (max 5 MB) via the admin panel. The image compresses to WebP via Sharp on the server.
+#### 5. Recompress Script (`npm run recompress`)
+Re-compresses all existing product images via Sharp. Useful after importing products through Vercel (where Sharp is unavailable), to compress them locally.
 
-#### 4. Excel Import with Images
-Upload image files alongside the Excel file. The system matches images to products by filename (case-insensitive slug matching).
+### Client-Side Compression
 
-### Image Naming Convention
+When uploading images through the Vercel-hosted admin page, `sharp` native binaries are unavailable. Instead, images are compressed **in the browser** before upload:
+
+```
+User selects image → Canvas API resizes to 400px → converts to WebP at 70% → compressed blob uploaded
+```
+
+This eliminates the dependency on server-side Sharp for Vercel deployments.
+
+### Image Size Display
+
+- **Product Edit page:** Shows current image size, and original → compressed size comparison when selecting a new image
+- **Admin Dashboard:** Each product row shows its image size in a dedicated column
+
+### Image Naming Convention (for Excel import)
 
 ```
 Product: "Kashmiri Garlic Black"
@@ -397,11 +422,11 @@ Product: "Kashmiri Garlic Black"
   → File: Kashmiri_Garlic_Black.jpeg
 ```
 
-Supported: `.jpeg`, `.jpg`, `.png`, `.gif`, `.webp`
+Supported formats: `.jpeg`, `.jpg`, `.png`, `.gif`, `.webp`. All converted to WebP.
 
 ### Fallback
 
-If no image is stored or loading fails, a placeholder emoji (🛍️) is displayed. The `onError` handler on the `<img>` tag gracefully falls back.
+If no image is stored or loading fails, a placeholder emoji (🛍️) is displayed.
 
 ---
 
@@ -512,15 +537,17 @@ The following optimizations are in place:
 
 | Optimization | Location | Details |
 |-------------|----------|--------|
-| **Image Compression** | `server/compressImage.js` | Sharp resizes to 600px max, converts to WebP at 85% quality. Applied during seed, import, and product create/update. |
-| **Separate Image Endpoint** | `server/app.js`, `ProductCard.jsx` | Images served via `/api/products/:id/image` instead of inline base64 — keeps JSON payloads tiny (~5KB per page). |
-| **Server Image Cache** | `server/app.js` | All images pre-loaded into memory on startup (`warmupImageCache()`). Subsequent requests served from memory — no DB query. 5-minute TTL as safety net. |
+| **Inline Images (Page 1)** | `server/app.js`, `ProductCard.jsx` | First-page product images embedded as `data:` URIs in JSON response — zero extra HTTP requests, instant render. |
+| **Hybrid Lazy Loading** | `server/app.js`, `ProductCard.jsx` | Page 1 = inline images; pages 2+ = lazy `/api/products/:id/image` endpoint. Keeps infinite-scroll payloads lean. |
+| **Vercel CDN Edge Cache** | `server/app.js`, `vercel.json` | API responses cached at edge for 1 hour (`s-maxage=3600`) with `stale-while-revalidate=86400`. Returning visitors get sub-ms responses globally. |
+| **Image CDN Cache** | `server/app.js`, `vercel.json` | Individual images cached at Vercel edge for 7 days (`s-maxage=604800`). |
+| **Immutable Asset Caching** | `vercel.json` | Vite-built assets served with `max-age=31536000, immutable`. |
+| **Client-Side Compression** | `src/utils/clientCompress.js`, `ProductForm.jsx`, `ImportExcel.jsx` | Canvas API resizes to 400px, converts to WebP at 70% quality — works on Vercel where Sharp is unavailable. |
+| **Server Image Compression** | `server/compressImage.js` | Sharp resizes to 400px max, converts to WebP at 70% quality. Appleid during seed, import, and product CRUD (local only). |
+| **Image Size Display** | `AdminDashboard.jsx`, `ProductForm.jsx`, `admin.css` | Admin dashboard shows per-product image sizes; edit form shows original → compressed size. |
+| **Accurate MIME Fallback** | `server/compressImage.js` | `detectMimeFromBuffer()` detects actual image format from magic bytes when Sharp is unavailable — client-compressed WebP keeps correct type. |
 | **Server-side Pagination** | `server/app.js` | 20 products per page with `LIMIT/OFFSET`. Reduces initial payload. |
-| **In-memory API Cache** | `server/app.js` | 10-second TTL cache for product list responses. Prevents redundant DB queries. |
-| **7-day Browser Cache** | Image endpoint | `Cache-Control: public, max-age=604800` with `?v=updated_at` for cache busting. |
-| **Eager Image Loading** | `ProductCard.jsx` | No `loading="lazy"` — images load immediately when DOM renders. |
-| **JS Image Preloading** | `useProducts.js` | All first-page images preloaded via `new Image()` right after API response arrives. |
-| **Placeholder Overlay** | `ProductCard.jsx`, `index.css` | Emoji placeholder uses `position: absolute; inset: 0` to overlay the image, fading out smoothly on load. |
+| **Placeholder Overlay** | `ProductCard.jsx`, `index.css` | Emoji placeholder overlaid via `position: absolute; inset: 0`, fades out smoothly on load. |
 | **Category Loading Animation** | `ProductGrid.jsx`, `index.css` | Pulse effect + spinner on existing products during category/filter switches for instant visual feedback. |
 | **Infinite Scroll** | `ProductGrid.jsx` | `IntersectionObserver` with 200px rootMargin triggers next page load. |
 | **Code Splitting** | `App.jsx` | `React.lazy()` + `Suspense` for AdminPage — admin code loads only when visiting `/admin`. |

@@ -10,11 +10,14 @@ const ProductCard = memo(function ProductCard({ product, lang, t }) {
   // Falls back to the original product_name if no Marathi name is available.
   const name = product.product_name_mr || toMarathi(product.product_name, 'mr') || product.product_name
 
-  // Images are served from the dedicated /image endpoint with in-memory server cache
-  // and 7-day browser cache. The ?v=updated_at param busts the cache after edits.
-  const imageSrc = product.id
-    ? `/api/products/${product.id}/image?v=${encodeURIComponent(product.updated_at || '0')}`
-    : null
+  // Images are embedded inline (base64) in the API response for instant rendering.
+  // No separate HTTP request needed — avoids a waterfall of individual image fetches
+  // on Vercel serverless. Falls back to the /image endpoint if no inline data.
+  const imageSrc = product.image_data && product.id
+    ? `data:${product.image_type || 'image/webp'};base64,${product.image_data}`
+    : product.id
+      ? `/api/products/${product.id}/image?v=${encodeURIComponent(product.updated_at || '0')}`
+      : null
 
   const availabilityClass =
     product.availability === 'yes' ? 'in-stock' :

@@ -1,0 +1,28 @@
+feat: client-side compression, inline images, CDN caching, hybrid lazy loading, image size display
+
+Client-Side Compression:
+- New src/utils/clientCompress.js — Canvas API resize to 400px WebP at 70% quality
+- ProductForm.jsx — compress in-browser before upload (works on Vercel without sharp)
+- ImportExcel.jsx — compress selected images in parallel before FormData upload
+
+Inline Images + Hybrid Loading:
+- Public page 1: image_data + image_type included in API response (instant render)
+- Pages 2+ (infinite scroll): no image data, lazy via /api/products/:id/image
+- ProductCard.jsx: data: URI when image_data available, fallback to /image endpoint
+- useProducts.js: removed preloadImages() — no longer needed
+
+CDN Edge Caching:
+- Product list API: s-maxage=3600, stale-while-revalidate=86400
+- Image endpoint: s-maxage=604800 (7 days at edge)
+- vercel.json: explicit cache headers + immutable asset caching (1 year)
+
+Image Size Display:
+- formatBytes() utility in src/utils/format.js (shared)
+- AdminDashboard: new Size column in product table
+- ProductForm: shows current image size + original vs compressed comparison
+- Server: LENGTH(image_data) as image_size in product list query
+
+Server Fixes:
+- detectMimeFromBuffer() — magic byte detection for accurate mime when sharp unavailable
+- Client-compressed WebP images retain correct image/webp content type
+

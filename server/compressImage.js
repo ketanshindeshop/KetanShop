@@ -45,8 +45,10 @@ async function getSharp() {
 export async function compressImage(inputBuffer) {
   const sharp = await getSharp();
   if (!sharp) {
-    // Sharp not available — return original buffer as-is
-    return { buffer: inputBuffer, mime: 'image/jpeg' };
+    // Sharp not available — return original buffer as-is, but detect
+    // the actual mime from magic bytes so client-compressed WebP images
+    // retain their correct content type.
+    return { buffer: inputBuffer, mime: detectMimeFromBuffer(inputBuffer) };
   }
 
   const MAX_ATTEMPTS = 3;
@@ -78,5 +80,5 @@ export async function compressImage(inputBuffer) {
 
   // All attempts failed — log and return original buffer as fallback
   console.error(`❌ Compression failed after ${MAX_ATTEMPTS} attempts: ${lastError.message}`);
-  return { buffer: inputBuffer, mime: 'image/jpeg' };
+  return { buffer: inputBuffer, mime: detectMimeFromBuffer(inputBuffer) };
 }

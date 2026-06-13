@@ -1,4 +1,6 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
+import { compressFile } from '../utils/clientCompress.js'
+import { formatBytes } from '../utils/format.js'
 
 export default function ProductForm({ product, secret, onSaved, onCancel }) {
   const isEdit = !!product
@@ -11,17 +13,39 @@ export default function ProductForm({ product, secret, onSaved, onCancel }) {
     availability: product?.availability || 'yes',
     sort_order: product?.sort_order || '',
   })
-  const [imageData, setImageData] = useState(null)   // base64 string
+  const [imageData, setImageData] = useState(null)   // base64 string (compressed)
   const [imageType, setImageType] = useState(null)    // MIME type
   const [imagePreview, setImagePreview] = useState(null) // blob URL for preview
+  const [compressing, setCompressing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [currentImageSize, setCurrentImageSize] = useState(null) // bytes of existing image
+  const [originalFileSize, setOriginalFileSize] = useState(null) // bytes of selected original file
+  const [compressedSize, setCompressedSize] = useState(null)     // bytes after client compression
+
+  // Fetch current image size when editing an existing product
+  useEffect(() => {
+    if (!isEdit || !product?.id) return
+    let cancelled = false
+    fetch(`/api/products/${product.id}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return
+        if (data.success && data.product?.image_data) {
+          // Base64 → binary size: base64.length * 3/4
+          const bytes = Math.round(data.product.image_data.length * 0.75)
+          setCurrentImageSize(bytes)
+        }
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [isEdit, product?.id])
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleFileSelect = (e) => {
+  const handleFileSelect = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
     // Validate file type
@@ -30,24 +54,39 @@ export default function ProductForm({ product, secret, onSaved, onCancel }) {
       setError('Only JPEG, PNG, GIF, and WebP images are supported')
       return
     }
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setError('Image must be less than 5MB')
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Image must be less than 10MB')
       return
     }
     setError('')
-    setImageType(file.type)
-    // Create preview
+    setCompressing(true)
+    setOriginalFileSize(file.size)
+    setCompressedSize(null)
+
+    // Show preview immediately using the original file
     const previewUrl = URL.createObjectURL(file)
     setImagePreview(previewUrl)
-    // Read as base64
-    const reader = new FileReader()
-    reader.onload = () => {
-      // Remove the data:image/...;base64, prefix
-      const base64 = reader.result.split(',')[1]
-      setImageData(base64)
+
+    try {
+      // Compress client-side: resize to 400px, convert to WebP
+      const compressed = await compressFile(file)
+      setImageData(compressed.base64)
+      setImageType(compressed.mime) // 'image/webp'
+      // Record compressed size from blob size
+      setCompressedSize(compressed.blob.size)
+    } catch (err) {
+      console.warn('Client-side compression failed, using original:', err.message)
+      // Fallback: read original file as base64
+      const reader = new FileReader()
+      reader.onload = () => {
+        setImageData(reader.result.split(',')[1])
+        setImageType(file.type)
+      }
+      reader.readAsDataURL(file)
+    } finally {
+      setCompressing(false)
     }
-    reader.readAsDataURL(file)
   }
 
   const handleSubmit = async (e) => {
@@ -182,7 +221,22 @@ export default function ProductForm({ product, secret, onSaved, onCancel }) {
                     style={{ maxWidth: '200px', maxHeight: '150px', borderRadius: '8px', border: '2px solid #e8e6e1' }}
                   />
                   <p style={{ fontSize: '.8rem', color: '#6c6c80', marginTop: '6px' }}>
-                    New image selected ✓
+                    {originalFileSize && (
+                      <span>
+                        Original: <strong>{formatBytes(originalFileSize)}</strong>
+                      </span>
+                    )}
+                    {compressedSize && (
+                      <span>
+                        {' → '}Compressed: <strong style={{ color: '#38a169' }}>{formatBytes(compressedSize)}</strong>
+                        {' '}<span style={{ color: '#38a169', fontSize: '.7rem' }}>
+                          ({Math.round((1 - compressedSize / originalFileSize) * 100)}% smaller)
+                        </span>
+                      </span>
+                    )}
+                    {!compressedSize && compressing && (
+                      <span style={{ color: '#a68b5b' }}>⏳ compressing...</span>
+                    )}
                   </p>
                 </div>
               )}
@@ -196,12 +250,12 @@ export default function ProductForm({ product, secret, onSaved, onCancel }) {
                     onError={(e) => { e.target.style.display = 'none'; }}
                   />
                   <p style={{ fontSize: '.8rem', color: '#6c6c80', marginTop: '6px' }}>
-                    Current image (select a new file to replace)
+                    Current image{currentImageSize ? ` — ${formatBytes(currentImageSize)}` : ''}
                   </p>
                 </div>
               )}
               <p className="admin-form-hint">
-                Upload JPEG, PNG, or WebP. Max 5MB. Image is stored directly in the database.
+                Upload JPEG, PNG, or WebP. Max 10MB. Image is compressed to 400px WebP automatically.
               </p>
             </div>
           </div>
@@ -225,8 +279,8 @@ export default function ProductForm({ product, secret, onSaved, onCancel }) {
             <button type="button" className="admin-btn" onClick={onCancel}>
               Cancel
             </button>
-            <button type="submit" className="admin-btn admin-btn-primary" disabled={saving}>
-              {saving ? '⏳ Saving...' : isEdit ? '💾 Update Product' : '✅ Create Product'}
+            <button type="submit" className="admin-btn admin-btn-primary" disabled={saving || compressing}>
+              {saving ? '⏳ Saving...' : compressing ? '🔄 Compressing...' : isEdit ? '💾 Update Product' : '✅ Create Product'}
             </button>
           </div>
         </form>

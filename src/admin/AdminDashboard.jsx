@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import ProductForm from './ProductForm'
 import { CATEGORY_MAP } from '../translations'
+import { formatBytes } from '../utils/format'
 
 export default function AdminDashboard({ secret, refreshKey, onRefresh }) {
   const [products, setProducts] = useState([])
@@ -88,6 +89,7 @@ export default function AdminDashboard({ secret, refreshKey, onRefresh }) {
                 <th>Image</th>
                 <th>Product Name</th>
                 <th>Marathi Name</th>
+                <th>Size</th>
                 <th>Category</th>
                 <th>Price</th>
                 <th>Availability</th>
@@ -97,7 +99,7 @@ export default function AdminDashboard({ secret, refreshKey, onRefresh }) {
             <tbody>
               {products.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="admin-empty">No products found</td>
+                  <td colSpan="9" className="admin-empty">No products found</td>
                 </tr>
               ) : (
                 products.map((p) => (
@@ -114,6 +116,9 @@ export default function AdminDashboard({ secret, refreshKey, onRefresh }) {
                     </td>
                     <td className="admin-name-cell">
                       <span className="admin-name-mr">{p.product_name_mr || '—'}</span>
+                    </td>
+                    <td className={p.image_size ? '' : 'admin-size-empty'}>
+                      {p.image_size ? formatBytes(p.image_size) : '—'}
                     </td>
                     <td><span className="admin-cat-tag">{CATEGORY_MAP[p.category]?.en || p.category}</span></td>
                     <td>₹{Number(p.price).toLocaleString('en-IN')}</td>
