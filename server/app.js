@@ -207,10 +207,12 @@ app.get('/api/products', async (req, res) => {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     } else {
       setProductListCache(cacheKey, response);
-      // Vercel CDN caches the response at edge locations for 5 minutes.
-      // stale-while-revalidate serves cached instantly while refreshing in background,
-      // so returning visitors get sub-millisecond response from the nearest edge.
-      res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=86400');
+      // Vercel CDN caches the response and serves it instantly (stale-while-revalidate).
+      // s-maxage=0 means the cache is immediately considered stale, so the CDN ALWAYS
+      // revalidates in the background. The cached version is served while revalidating.
+      // When admin edits → invalidateCache() clears server cache → next revalidation
+      // gets fresh data → CDN updated. Users always see latest data within 1 request.
+      res.setHeader('Cache-Control', 'public, s-maxage=0, stale-while-revalidate=86400');
     }
     res.json(response);
   } catch (error) {

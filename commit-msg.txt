@@ -1,3 +1,8 @@
-fix: reduce CDN cache from 1 hour to 5 minutes for public API responses
+fix: smart CDN caching — serve instantly from cache, revalidate in background
 
-- s-maxage changed from 3600 to 300 so public users see edits within 5 minutes
+- Public API: s-maxage=0 + stale-while-revalidate=86400
+  → CDN caches response, always serves from cache (instant)
+  → Revalidates in background on every request
+  → Admin edits → next revalidation picks up fresh data
+- vercel.json: removed API caching headers (server controls them now)
+  Kept immutable asset caching for Vite-built files
