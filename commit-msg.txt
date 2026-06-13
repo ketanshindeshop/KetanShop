@@ -1,6 +1,1 @@
-fix: add detectMimeFromBuffer function to compressImage.js
-
-- Function was referenced but never defined, causing 500 errors on Vercel
-  when uploading/editing product images (sharp unavailable path)
-- Detects MIME type from magic bytes: JPEG, PNG, GIF, WebP, SVG
-- Falls back to image/jpeg for unrecognized formats
+fix: realtime admin responses — skip all caching layers for admin API requests

@@ -122,7 +122,8 @@ app.get('/api/products', async (req, res) => {
     // Build a cache key from the query parameters
     const cacheKey = req.originalUrl;
     const cached = getProductListCached(cacheKey);
-    if (cached) {
+    // Admin requests always bypass the in-memory cache for realtime data.
+    if (cached && !isAdminRequest) {
       res.setHeader('X-Cache', 'HIT');
       return res.json(cached);
     }
@@ -200,12 +201,17 @@ app.get('/api/products', async (req, res) => {
       hasMore: pageNum < totalPages,
     };
 
-    setProductListCache(cacheKey, response);
-    res.setHeader('X-Cache', 'MISS');
-    // Vercel CDN caches the response at edge locations for 1 hour.
-    // stale-while-revalidate serves cached instantly while refreshing in background,
-    // so returning visitors get sub-millisecond response from the nearest edge.
-    res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
+    // Admin requests must always return fresh data — skip all caching.
+    // Public requests use CDN edge cache for fast repeat visits.
+    if (isAdminRequest) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    } else {
+      setProductListCache(cacheKey, response);
+      // Vercel CDN caches the response at edge locations for 1 hour.
+      // stale-while-revalidate serves cached instantly while refreshing in background,
+      // so returning visitors get sub-millisecond response from the nearest edge.
+      res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
+    }
     res.json(response);
   } catch (error) {
     console.error('❌ API Error:', error);
