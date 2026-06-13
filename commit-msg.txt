@@ -1,1 +1,3 @@
-fix: realtime admin responses — skip all caching layers for admin API requests
+fix: reduce CDN cache from 1 hour to 5 minutes for public API responses
+
+- s-maxage changed from 3600 to 300 so public users see edits within 5 minutes
