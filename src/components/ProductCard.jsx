@@ -32,7 +32,7 @@ const ProductCard = memo(function ProductCard({ product, lang, t }) {
       <div className="product-image-wrapper">
         {imageSrc && !imgError && (
           <img
-            className="product-image"
+            className={`product-image${imgLoaded ? ' loaded' : ''}`}
             src={imageSrc}
             alt={name}
             onLoad={() => setImgLoaded(true)}

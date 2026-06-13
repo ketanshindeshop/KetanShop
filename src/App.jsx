@@ -8,10 +8,36 @@ import FilterSidebar from './components/FilterSidebar'
 import ProductGrid from './components/ProductGrid'
 import Footer from './components/Footer'
 
+function AppLoader() {
+  return (
+    <div className="app-loader">
+      <div className="app-loader-ring" />
+      <img
+        className="app-loader-logo"
+        src="/ShriRamTradersLogo.png"
+        alt="Shriram Traders"
+      />
+      <p className="app-loader-text">
+        Shriram Traders
+        <span className="app-loader-dot">.</span>
+        <span className="app-loader-dot">.</span>
+        <span className="app-loader-dot">.</span>
+      </p>
+    </div>
+  )
+}
+
 const AdminPage = lazy(() => import('./admin/AdminPage'))
 
 export default function App() {
   const [isAdmin, setIsAdmin] = useState(() => window.location.pathname.startsWith('/admin'))
+  const [appReady, setAppReady] = useState(false)
+
+  useEffect(() => {
+    // Mark ready after the next frame so the loader shows at least one tick
+    const frame = requestAnimationFrame(() => setAppReady(true))
+    return () => cancelAnimationFrame(frame)
+  }, [])
 
   useEffect(() => {
     const handlePopState = () => {
@@ -31,20 +57,23 @@ export default function App() {
     setIsAdmin(false)
   }
 
-  if (isAdmin) {
-    return (
-      <Suspense fallback={
-        <div className="admin-loading" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-          <div className="loading-spinner" />
-          <p>Loading admin panel...</p>
-        </div>
-      }>
-        <AdminPage onBackToSite={navigateToHome} />
-      </Suspense>
-    )
-  }
-
-  return <MainShop />
+  return (
+    <>
+      {!appReady && <AppLoader />}
+      {isAdmin ? (
+        <Suspense fallback={
+          <div className="admin-loading" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+            <div className="loading-spinner" />
+            <p>Loading admin panel...</p>
+          </div>
+        }>
+          <AdminPage onBackToSite={navigateToHome} />
+        </Suspense>
+      ) : (
+        appReady ? <MainShop /> : null
+      )}
+    </>
+  )
 }
 
 function MainShop() {
