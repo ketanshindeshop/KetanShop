@@ -158,6 +158,19 @@ export default function Header({ t, onAdminClick, categories, setCategory, minPr
         </nav>
 
         <div className="header-right">
+          {/* Contact info — visible on desktop */}
+          <div className="header-contact">
+            <span className="header-contact-title">{t('contactUs')}</span>
+            <div className="header-contact-details">
+              <span className="header-contact-item">
+                👤 {t('owner')}: <strong>{t('ownerName')}</strong>
+              </span>
+              <a href="tel:+917387513192" className="header-contact-phone">
+                📞 {t('phone')}: <strong>7387513192</strong>
+              </a>
+            </div>
+          </div>
+
           {onAdminClick && (
             <button className="admin-nav-link" onClick={onAdminClick}>
               🔐 Admin
