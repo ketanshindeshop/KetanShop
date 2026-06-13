@@ -9,8 +9,21 @@ import ProductGrid from './components/ProductGrid'
 import Footer from './components/Footer'
 
 function AppLoader() {
+  const [hidden, setHidden] = useState(false)
+  const [fading, setFading] = useState(false)
+
+  useEffect(() => {
+    // Start fade-out on the next microtask — does NOT block any rendering
+    Promise.resolve().then(() => setFading(true))
+    // Unmount after CSS transition completes
+    const timer = setTimeout(() => setHidden(true), 400)
+    return () => clearTimeout(timer)
+  }, [])
+
+  if (hidden) return null
+
   return (
-    <div className="app-loader">
+    <div className={`app-loader${fading ? ' hidden' : ''}`}>
       <div className="app-loader-ring" />
       <img
         className="app-loader-logo"
@@ -31,13 +44,6 @@ const AdminPage = lazy(() => import('./admin/AdminPage'))
 
 export default function App() {
   const [isAdmin, setIsAdmin] = useState(() => window.location.pathname.startsWith('/admin'))
-  const [appReady, setAppReady] = useState(false)
-
-  useEffect(() => {
-    // Mark ready after the next frame so the loader shows at least one tick
-    const frame = requestAnimationFrame(() => setAppReady(true))
-    return () => cancelAnimationFrame(frame)
-  }, [])
 
   useEffect(() => {
     const handlePopState = () => {
@@ -59,7 +65,6 @@ export default function App() {
 
   return (
     <>
-      {!appReady && <AppLoader />}
       {isAdmin ? (
         <Suspense fallback={
           <div className="admin-loading" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
@@ -70,7 +75,10 @@ export default function App() {
           <AdminPage onBackToSite={navigateToHome} />
         </Suspense>
       ) : (
-        appReady ? <MainShop /> : null
+        <>
+          <AppLoader />
+          <MainShop />
+        </>
       )}
     </>
   )
