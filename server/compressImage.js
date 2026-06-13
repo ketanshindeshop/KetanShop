@@ -26,6 +26,27 @@ async function getSharp() {
 }
 
 /**
+ * Detect the MIME type of an image from its magic bytes (file signature).
+ * Falls back to 'image/jpeg' if the format is unrecognized.
+ *
+ * @param {Buffer} buffer - Raw image data
+ * @returns {string} MIME type string
+ */
+export function detectMimeFromBuffer(buffer) {
+  if (!buffer || buffer.length < 4) return 'image/jpeg';
+
+  const header = buffer.subarray(0, 12).toString('hex');
+
+  if (header.startsWith('89504e47')) return 'image/png';
+  if (header.startsWith('ffd8ff')) return 'image/jpeg';
+  if (header.startsWith('47494638')) return 'image/gif';  // GIF87a or GIF89a
+  if (header.startsWith('52494646') && header.includes('57454250')) return 'image/webp';  // RIFF....WEBP
+  if (header.startsWith('3c737667') || header.startsWith('efbbbf3c737667')) return 'image/svg+xml';  // <svg or BOM<svg
+
+  return 'image/jpeg';
+}
+
+/**
  * Compress an image buffer: resize to max 400px (maintaining aspect ratio)
  * and convert to WebP format.
  *
