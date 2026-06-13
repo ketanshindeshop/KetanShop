@@ -10,12 +10,11 @@ const ProductCard = memo(function ProductCard({ product, lang, t }) {
   // Falls back to the original product_name if no Marathi name is available.
   const name = product.product_name_mr || toMarathi(product.product_name, 'mr') || product.product_name
 
-  // Use blob URL from the product list response (instant, no HTTP request),
-  // or fall back to the dedicated image endpoint with cache-busting via updated_at.
-  // Images are cached by the browser for 7 days (Cache-Control on the endpoint).
-  const imageSrc = product._blobUrl || (product.id
+  // Images are served from the dedicated /image endpoint with in-memory server cache
+  // and 7-day browser cache. The ?v=updated_at param busts the cache after edits.
+  const imageSrc = product.id
     ? `/api/products/${product.id}/image?v=${encodeURIComponent(product.updated_at || '0')}`
-    : null)
+    : null
 
   const availabilityClass =
     product.availability === 'yes' ? 'in-stock' :

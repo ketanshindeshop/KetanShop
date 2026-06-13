@@ -3,25 +3,6 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 const PAGE_LIMIT = 20
 
 /**
- * Convert a base64 string to a Blob URL for instant image rendering.
- * This eliminates the waterfall of individual image HTTP requests.
- */
-function base64ToBlobUrl(base64, mimeType) {
-  try {
-    const byteChars = atob(base64)
-    const byteNumbers = new Array(byteChars.length)
-    for (let i = 0; i < byteChars.length; i++) {
-      byteNumbers[i] = byteChars.charCodeAt(i)
-    }
-    const byteArray = new Uint8Array(byteNumbers)
-    const blob = new Blob([byteArray], { type: mimeType || 'image/webp' })
-    return URL.createObjectURL(blob)
-  } catch {
-    return null
-  }
-}
-
-/**
  * Preload product images by creating Image objects.
  * Once cached by the browser (7-day Cache-Control), subsequent renders are instant.
  */
@@ -42,11 +23,8 @@ export function useProducts() {
   const [page, setPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
-  const [hasMore, setHasMore] = useState(false)    // Generation counter to discard stale loadMore responses after a filter change
+  const [hasMore, setHasMore] = useState(false)
   const generationRef = useRef(0)
-
-  // Track blob URLs so we can revoke them on cleanup
-  const blobUrlsRef = useRef([])
 
   // Filter state
   const [search, setSearch] = useState('')
@@ -71,32 +49,6 @@ export function useProducts() {
     return params
   }, [search, category, minPrice, maxPrice, sort, dir, showOutOfStock])
 
-  // Revoke all tracked blob URLs to prevent memory leaks
-  const revokeBlobUrls = useCallback(() => {
-    const urls = blobUrlsRef.current
-    for (const url of urls) {
-      try { URL.revokeObjectURL(url) } catch {}
-    }
-    blobUrlsRef.current = []
-  }, [])
-
-  /**
-   * Convert image_data from product list into blob URLs for instant rendering.
-   * Returns a copy of the products array with _blobUrl added (image_data removed to
-   * keep the state lean).
-   */
-  const attachBlobUrls = useCallback((products) => {
-    const urls = []
-    const processed = products.map((p) => {
-      if (!p.image_data) return p
-      const bUrl = base64ToBlobUrl(p.image_data, p.image_type)
-      if (bUrl) urls.push(bUrl)
-      const { image_data, image_type, ...rest } = p
-      return { ...rest, _blobUrl: bUrl }
-    })
-    return { processed, urls }
-  }, [])
-
   const fetchProducts = useCallback(async () => {
     generationRef.current += 1
     const gen = generationRef.current
@@ -105,9 +57,6 @@ export function useProducts() {
     setError(null)
     setPage(1)
 
-    // Revoke blob URLs from previous fetch
-    revokeBlobUrls()
-
     try {
       const params = buildParams(1)
       const res = await fetch(`/api/products?${params.toString()}`)
@@ -115,17 +64,13 @@ export function useProducts() {
 
       if (gen !== generationRef.current) return // discard stale response
       if (data.success) {
-        // Convert base64 images to blob URLs for instant rendering
-        const { processed, urls } = attachBlobUrls(data.products)
-        blobUrlsRef.current = urls
-
-        setProducts(processed)
+        setProducts(data.products)
         setCategories(data.categories)
         setTotalCount(data.total || 0)
         setTotalPages(data.totalPages || 1)
         setHasMore(data.hasMore || false)
 
-        // Also preload via the image endpoint for browser cache (subsequent visits)
+        // Preload images so browser cache warms up
         preloadImages(data.products)
       } else {
         setError(data.error)
@@ -135,7 +80,7 @@ export function useProducts() {
     } finally {
       setLoading(false)
     }
-  }, [buildParams, revokeBlobUrls, attachBlobUrls])
+  }, [buildParams])
 
   useEffect(() => {
     fetchProducts()
@@ -155,15 +100,14 @@ export function useProducts() {
 
       if (gen !== generationRef.current) return // discard stale response
       if (data.success) {
-        // Convert incoming images to blob URLs
-        const { processed, urls } = attachBlobUrls(data.products)
-        blobUrlsRef.current = [...blobUrlsRef.current, ...urls]
-
-        setProducts((prev) => [...prev, ...processed])
+        setProducts((prev) => [...prev, ...data.products])
         setTotalCount(data.total || 0)
         setTotalPages(data.totalPages || 1)
         setHasMore(data.hasMore || false)
         setPage(nextPage)
+
+        // Preload next page images
+        preloadImages(data.products)
       } else {
         setError(data.error)
       }
@@ -172,7 +116,7 @@ export function useProducts() {
     } finally {
       setLoadingMore(false)
     }
-  }, [loadingMore, hasMore, page, buildParams, attachBlobUrls])
+  }, [loadingMore, hasMore, page, buildParams])
 
   const clearFilters = useCallback(() => {
     setSearch('')

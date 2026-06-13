@@ -1,5 +1,5 @@
 const MAX_DIMENSION = 400;
-const WEBP_QUALITY = 85;
+const WEBP_QUALITY = 70;
 
 // Cache the sharp import so we only attempt to load it once
 let sharpModule = null;

@@ -1557,7 +1557,35 @@ a {
   }
 
   .header-contact {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    margin-right: 6px;
+    padding-right: 6px;
+    border-right: none;
+  }
+
+  .header-contact-title {
     display: none;
+  }
+
+  .header-contact-details {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
+  }
+
+  .header-contact-item {
+    font-size: 0.7rem;
+  }
+
+  .header-contact-item strong {
+    font-weight: 600;
+  }
+
+  .header-contact-phone {
+    font-size: 0.7rem;
   }
 }
 

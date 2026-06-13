@@ -168,9 +168,7 @@ app.get('/api/products', async (req, res) => {
     // For public requests, include image_data so the client can render instantly
     // via blob URLs instead of a waterfall of 20+ individual image HTTP requests.
     // For admin requests (show_all=true), skip image_data to keep the payload lean.
-    const selectCols = isAdminRequest
-      ? 'id, product_name, product_name_mr, price, category, availability, sort_order, created_at, updated_at'
-      : 'id, product_name, product_name_mr, price, image_data, image_type, category, availability, sort_order, created_at, updated_at';
+    const selectCols = 'id, product_name, product_name_mr, price, category, availability, sort_order, created_at, updated_at';
     const sql = `SELECT ${selectCols} FROM products ${where} ORDER BY ${safeSort} ${safeDir} LIMIT ? OFFSET ?`;
     const result = await query(sql, [...params, limitNum, offset]);
 
@@ -474,8 +472,16 @@ app.post('/api/admin/products/import-excel', requireAdmin, upload.fields([
         }
         const imgResult = imageToBase64(imagePath);
         if (imgResult) {
-          imageData = imgResult.base64;
-          imageType = imgResult.mime;
+          // Compress disk images too — resize to 400px WebP
+          try {
+            const imgBuffer = Buffer.from(imgResult.base64, 'base64');
+            const compressed = await compressImage(imgBuffer);
+            imageData = compressed.buffer.toString('base64');
+            imageType = compressed.mime;
+          } catch {
+            imageData = imgResult.base64;
+            imageType = imgResult.mime;
+          }
         }
       }
 

@@ -200,7 +200,7 @@ export default function Header({ t, onAdminClick, categories, setCategory, minPr
       >
         <div className="mobile-menu-header">
           <a href="/" className="mobile-menu-brand" onClick={(e) => { e.preventDefault(); closeMenu(); setTimeout(goHome, 100); }}>
-            {t('brandName')}<span className="brand-name-mr"> | {t('brandNameMr')}</span>
+            {t('brandNameMr')}
           </a>
           <button className="mobile-menu-close" onClick={closeMenu}>✕</button>
         </div>
