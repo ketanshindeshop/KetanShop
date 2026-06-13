@@ -1,7 +1,8 @@
-feat: auto-generate SVG placeholder images for products without images, notify before import
+fix: missing brace in import-excel endpoint, add placeholders to admin form
 
-- Deleted Shengadanyachi_Chikki product from DB
-- New server/generatePlaceholder.js — SVG placeholder generator (no deps)
-- Import-excel endpoint generates placeholders for products without images
-- ImportExcel.jsx parses Excel client-side, shows confirm dialog if images missing
-- Shows placeholder count in import result summary
+- Fixed critical bug: missing closing brace in import-excel endpoint caused
+  the else block to never close — db.execute was trapped inside the else,
+  so products WITH uploaded images skipped the insert entirely
+- POST /api/admin/products now also generates SVG placeholders when no
+  image_data is provided (all creation paths now auto-generate images)
+- Both fixes ensure every product always has an image (no more null image_data)

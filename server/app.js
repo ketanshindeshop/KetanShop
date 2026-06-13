@@ -278,7 +278,7 @@ app.post('/api/admin/products', requireAdmin, async (req, res) => {
     const finalProductNameMr = isMarathi
       ? product_name.trim()
       : (product_name_mr && product_name_mr.trim()) ? product_name_mr.trim() : (toMarathi(product_name, 'mr') || '');
-    // Compress uploaded image if provided
+    // Compress uploaded image if provided; otherwise generate a placeholder
     let compressedData = null;
     let compressedType = null;
     if (image_data) {
@@ -286,6 +286,11 @@ app.post('/api/admin/products', requireAdmin, async (req, res) => {
       const compressed = await compressImage(imgBuffer);
       compressedData = compressed.buffer.toString('base64');
       compressedType = compressed.mime;
+    } else {
+      // No image provided — generate an SVG placeholder with the product name
+      const placeholder = generatePlaceholder(product_name);
+      compressedData = placeholder.base64;
+      compressedType = placeholder.mime;
     }
 
     const result = await getDb().execute({
@@ -293,7 +298,7 @@ app.post('/api/admin/products', requireAdmin, async (req, res) => {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         productNameEn, finalProductNameMr, Number(price) || 0,
-        category || 'Groceries', image_path || '', compressedData || image_data || null, compressedType || image_type || null,
+        category || 'Groceries', image_path || '', compressedData, compressedType,
         availability || 'yes', Number(sort_order) || 0,
       ],
     });
@@ -492,6 +497,8 @@ app.post('/api/admin/products/import-excel', requireAdmin, upload.fields([
             imageType = imgResult.mime;
           }
         }
+      }
+
       // 3. If still no image, generate an SVG placeholder with the product name
       let placeholderGenerated = false;
       if (!imageData) {
