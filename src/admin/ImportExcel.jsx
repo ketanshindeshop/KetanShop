@@ -3,6 +3,7 @@ import { compressFile } from '../utils/clientCompress.js'
 
 export default function ImportExcel({ secret, onImported }) {
   const [file, setFile] = useState(null)
+  const [excelRowCount, setExcelRowCount] = useState(0)
   const [imageFiles, setImageFiles] = useState([])   // compressed files for upload
   const [previewFiles, setPreviewFiles] = useState([]) // originals for preview (avoid flicker)
   const [importing, setImporting] = useState(false)
@@ -30,11 +31,34 @@ export default function ImportExcel({ secret, onImported }) {
     return () => { cancelled = true }
   }, [secret])
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const f = e.target.files?.[0]
     setFile(f || null)
     setResult(null)
     setError('')
+    setExcelRowCount(0)
+
+    // Parse the Excel client-side to count rows (for pre-import confirmation)
+    if (f) {
+      try {
+        const XLSX = await import('xlsx')
+        const reader = new FileReader()
+        reader.onload = (evt) => {
+          try {
+            const data = new Uint8Array(evt.target.result)
+            const workbook = XLSX.read(data, { type: 'array' })
+            const sheetName = workbook.SheetNames[0]
+            const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName])
+            setExcelRowCount(rows.length)
+          } catch {
+            // Silently fail — row count is non-critical
+          }
+        }
+        reader.readAsArrayBuffer(f)
+      } catch {
+        // xlsx import may fail in some environments
+      }
+    }
   }
 
   const handleImagesChange = async (e) => {
@@ -97,6 +121,20 @@ export default function ImportExcel({ secret, onImported }) {
       setError('Please select an Excel file first')
       return
     }
+
+    // Check if some products will lack images — warn and ask confirmation
+    if (excelRowCount > 0 && imageFiles.length < excelRowCount) {
+      const missing = excelRowCount - imageFiles.length
+      const confirmed = window.confirm(
+        `${missing} out of ${excelRowCount} products ${missing === 1 ? 'has' : 'have'} no matching image.\n\n` +
+        `Auto-generated placeholder images will be used instead.\n\n` +
+        `Do you want to continue?`
+      )
+      if (!confirmed) {
+        return
+      }
+    }
+
     setImporting(true)
     setError('')
     setResult(null)
@@ -116,7 +154,13 @@ export default function ImportExcel({ secret, onImported }) {
       })
       const data = await res.json()
       if (data.success) {
-        setResult({ success: true, imported: data.imported, imagesImported: data.images_imported || 0, message: data.message })
+        setResult({
+          success: true,
+          imported: data.imported,
+          imagesImported: data.images_imported || 0,
+          placeholdersGenerated: data.placeholders_generated || 0,
+          message: data.message,
+        })
         setFile(null)
         setImageFiles([])
         setPreviewFiles([])
@@ -271,6 +315,11 @@ export default function ImportExcel({ secret, onImported }) {
               ✅ {result.message}
               {result.imagesImported > 0 && (
                 <span> ({result.imagesImported} image{result.imagesImported !== 1 ? 's' : ''} stored)</span>
+              )}
+              {result.placeholdersGenerated > 0 && (
+                <div style={{ marginTop: '6px', fontSize: '.85rem', color: '#a68b5b' }}>
+                  🖼️ {result.placeholdersGenerated} product{result.placeholdersGenerated !== 1 ? 's' : ''} got auto-generated placeholder images
+                </div>
               )}
             </div>
           )}

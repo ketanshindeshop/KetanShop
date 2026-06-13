@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
 import { query, getDb, imageToBase64, MIME_MAP, ALLOWED_IMAGE_EXTS } from './db.js';
 import { compressImage } from './compressImage.js';
+import { generatePlaceholder } from './generatePlaceholder.js';
 import { toMarathi, getWordMap } from '../src/utils/transliterate.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -412,6 +413,7 @@ app.post('/api/admin/products/import-excel', requireAdmin, upload.fields([
     const db = getDb();
     let imported = 0;
     let imagesImported = 0;
+    let placeholdersGenerated = 0;
 
     // Build a map of uploaded images: lowercase slug → { base64, mime }
     const uploadedImages = new Map();
@@ -490,6 +492,13 @@ app.post('/api/admin/products/import-excel', requireAdmin, upload.fields([
             imageType = imgResult.mime;
           }
         }
+      // 3. If still no image, generate an SVG placeholder with the product name
+      let placeholderGenerated = false;
+      if (!imageData) {
+        const placeholder = generatePlaceholder(productName);
+        imageData = placeholder.base64;
+        imageType = placeholder.mime;
+        placeholderGenerated = true;
       }
 
       // Smart language detection: check if product name is already in Marathi
@@ -508,10 +517,20 @@ app.post('/api/admin/products/import-excel', requireAdmin, upload.fields([
         ],
       });
       imported++;
+      if (placeholderGenerated) placeholdersGenerated++;
     }
 
     invalidateCache();
-    res.json({ success: true, imported, images_imported: imagesImported, message: `Imported ${imported} products` });
+    const msg = placeholdersGenerated > 0
+      ? `Imported ${imported} products (${placeholdersGenerated} with auto-generated placeholder images)`
+      : `Imported ${imported} products`;
+    res.json({
+      success: true,
+      imported,
+      images_imported: imagesImported,
+      placeholders_generated: placeholdersGenerated,
+      message: msg,
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
