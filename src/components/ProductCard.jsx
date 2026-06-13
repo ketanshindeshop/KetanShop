@@ -6,16 +6,16 @@ const ProductCard = memo(function ProductCard({ product, lang, t }) {
   const [imgLoaded, setImgLoaded] = useState(false)
   const [imgError, setImgError] = useState(false)
 
-  // Prefer the database-stored Marathi name; fall back to client-side transliteration
-  const name = lang === 'mr' && product.product_name_mr
-    ? product.product_name_mr
-    : toMarathi(product.product_name, lang)
+  // Always display the Marathi name (stored in DB or auto-transliterated).
+  // Falls back to the original product_name if no Marathi name is available.
+  const name = product.product_name_mr || toMarathi(product.product_name, 'mr') || product.product_name
 
-  // Serve images via the dedicated endpoint with cache-busting via updated_at.
+  // Use blob URL from the product list response (instant, no HTTP request),
+  // or fall back to the dedicated image endpoint with cache-busting via updated_at.
   // Images are cached by the browser for 7 days (Cache-Control on the endpoint).
-  const imageSrc = product.id
+  const imageSrc = product._blobUrl || (product.id
     ? `/api/products/${product.id}/image?v=${encodeURIComponent(product.updated_at || '0')}`
-    : null
+    : null)
 
   const availabilityClass =
     product.availability === 'yes' ? 'in-stock' :
@@ -39,12 +39,7 @@ const ProductCard = memo(function ProductCard({ product, lang, t }) {
             onError={() => setImgError(true)}
           />
         )}
-        <div
-          className="product-image-placeholder"
-          style={{ opacity: imgLoaded ? 0 : 1 }}
-        >
-          <span className="product-emoji">🛍️</span>
-        </div>
+        <div className={`product-image-placeholder${imgLoaded ? ' loaded' : ''}`} />
         {product.availability === 'no' && (
           <span className="out-of-stock-badge">{t('outOfStock')}</span>
         )}
@@ -55,6 +50,7 @@ const ProductCard = memo(function ProductCard({ product, lang, t }) {
 
         <div className="product-price-row">
           <span className="product-price">
+            <span className="mrp-label">{t('mrp')} </span>
             {t('currency')}{toMarathiNumerals(Number(product.price).toLocaleString('en-IN'), lang)}
           </span>
         </div>

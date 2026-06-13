@@ -1,7 +1,7 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react'
+import React, { useState, useEffect, lazy, Suspense, useCallback } from 'react'
 import { useLanguage } from './hooks/useLanguage'
 import { useProducts } from './hooks/useProducts'
-import LenisSmoothScroll from './components/LenisSmoothScroll'
+import LenisSmoothScroll, { useLenis } from './components/LenisSmoothScroll'
 import Header from './components/Header'
 import SearchBar from './components/SearchBar'
 import FilterSidebar from './components/FilterSidebar'
@@ -48,7 +48,58 @@ export default function App() {
 }
 
 function MainShop() {
-  const { lang, toggleLang, t } = useLanguage()
+  const { lang, t } = useLanguage()
+  const lenisRef = useLenis()
+
+  /** Scroll to an element by selector, using Lenis when available */
+  const scrollToElement = useCallback((selector, offset = 0) => {
+    requestAnimationFrame(() => {
+      const el = document.querySelector(selector)
+      if (!el) return
+      const targetY = el.getBoundingClientRect().top + window.scrollY - offset
+      if (lenisRef?.current) {
+        lenisRef.current.scrollTo(targetY, { immediate: false, duration: 1.5 })
+      } else {
+        window.scrollTo({ top: targetY, behavior: 'smooth' })
+      }
+    })
+  }, [lenisRef])
+
+  // Handle SPA routes — /home, /products, /contact
+  useEffect(() => {
+    const path = window.location.pathname
+    if (path === '/home') {
+      if (lenisRef?.current) {
+        lenisRef.current.scrollTo(0, { immediate: false, duration: 1.2 })
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      }
+    } else if (path === '/products') {
+      scrollToElement('#products-section', 20)
+    } else if (path === '/contact') {
+      scrollToElement('#contact-card', 80)
+    }
+  }, [])
+
+  // Listen for popstate to handle route changes on back/forward
+  useEffect(() => {
+    const handleRouteChange = () => {
+      const path = window.location.pathname
+      if (path === '/home') {
+        if (lenisRef?.current) {
+          lenisRef.current.scrollTo(0, { immediate: false, duration: 1.2 })
+        } else {
+          window.scrollTo({ top: 0, behavior: 'smooth' })
+        }
+      } else if (path === '/products') {
+        scrollToElement('#products-section', 20)
+      } else if (path === '/contact') {
+        scrollToElement('#contact-card', 80)
+      }
+    }
+    window.addEventListener('popstate', handleRouteChange)
+    return () => window.removeEventListener('popstate', handleRouteChange)
+  }, [scrollToElement, lenisRef])
 
   const {
     products,
@@ -76,10 +127,8 @@ function MainShop() {
 
   return (
     <LenisSmoothScroll>
-    <div className="app">
+    <div className="app" id="page-top">
       <Header
-        lang={lang}
-        toggleLang={toggleLang}
         t={t}
         categories={categories}
         setCategory={setCategory}
@@ -129,7 +178,7 @@ function MainShop() {
               />
             </aside>
 
-            <section className="products-section">
+            <section className="products-section" id="products-section">
               <ProductGrid
                 products={products}
                 loading={loading}

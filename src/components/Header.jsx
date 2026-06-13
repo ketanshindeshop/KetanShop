@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useLenis } from './LenisSmoothScroll'
+import { CATEGORY_MAP } from '../translations'
 
-export default function Header({ lang, toggleLang, t, onAdminClick, categories, setCategory, minPrice, setMinPrice, maxPrice, setMaxPrice, showOutOfStock, setShowOutOfStock }) {
+export default function Header({ t, onAdminClick, categories, setCategory, minPrice, setMinPrice, maxPrice, setMaxPrice, showOutOfStock, setShowOutOfStock }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [priceOpen, setPriceOpen] = useState(false)
   const touchStartX = useRef(0)
@@ -33,12 +34,57 @@ export default function Header({ lang, toggleLang, t, onAdminClick, categories, 
 
   const lenisRef = useLenis()
 
-  const scrollToFooter = () => {
+  /** Navigate to /home — scroll to top */
+  const goHome = () => {
+    window.history.pushState({}, '', '/home')
     if (lenisRef?.current) {
-      lenisRef.current.scrollTo('#footer-contact', { offset: 0, duration: 1.5 })
+      lenisRef.current.scrollTo(0, { immediate: false, duration: 1.2 })
     } else {
-      document.getElementById('footer-contact')?.scrollIntoView({ behavior: 'smooth' })
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
+  }
+
+  /** Navigate to /products — scroll to first row of product catalog */
+  const goToProducts = () => {
+    window.history.pushState({}, '', '/products')
+    requestAnimationFrame(() => {
+      const el = document.querySelector('#products-section')
+      if (!el) return
+      const targetY = el.getBoundingClientRect().top + window.scrollY - 20
+      if (lenisRef?.current) {
+        lenisRef.current.scrollTo(targetY, { immediate: false, duration: 1.2 })
+      } else {
+        window.scrollTo({ top: targetY, behavior: 'smooth' })
+      }
+    })
+  }
+
+  /** Navigate to /contact route and scroll to the contact card with the phone number */
+  const scrollToFooter = () => {
+    window.history.pushState({}, '', '/contact')
+
+    // Wait a frame so any layout settles, then target the contact card
+    requestAnimationFrame(() => {
+      const card = document.getElementById('contact-card')
+      if (!card) {
+        // Fallback: scroll to the footer
+        const footer = document.getElementById('footer-contact')
+        if (!footer) return
+        if (lenisRef?.current) {
+          lenisRef.current.scrollTo(footer.offsetTop, { immediate: false, duration: 1.5 })
+        } else {
+          footer.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+        return
+      }
+      // Get absolute Y position, subtract sticky header height (80px) for the offset
+      const targetY = card.getBoundingClientRect().top + window.scrollY - 80
+      if (lenisRef?.current) {
+        lenisRef.current.scrollTo(targetY, { immediate: false, duration: 1.5 })
+      } else {
+        window.scrollTo({ top: targetY, behavior: 'smooth' })
+      }
+    })
   }
 
   const closeMenu = () => {
@@ -101,14 +147,14 @@ export default function Header({ lang, toggleLang, t, onAdminClick, categories, 
         <div className="brand">
           <a href="/" className="brand-link" onClick={(e) => { e.preventDefault(); window.location.href = '/' }}>
             <img src="/ShriRamTradersLogo.png" alt="Shriram Traders" className="header-logo" />
-            <span className="brand-name">{t('brandName')}</span>
+            <span className="brand-name">{t('brandName')}<span className="brand-name-mr"> | {t('brandNameMr')}</span></span>
           </a>
         </div>
 
         <nav className="nav-links">
-          <button className="nav-link active">{t('home')}</button>
-          <button className="nav-link">{t('products')}</button>
-          <button className="nav-link" onClick={() => scrollToFooter()}>{t('contact')}</button>
+          <a href="#page-top" className="nav-link" onClick={(e) => { e.preventDefault(); goHome(); }}>{t('home')}</a>
+          <a href="#products-section" className="nav-link" onClick={(e) => { e.preventDefault(); goToProducts(); }}>{t('products')}</a>
+          <a href="#contact-card" className="nav-link" onClick={(e) => { e.preventDefault(); scrollToFooter(); }}>{t('contact')}</a>
         </nav>
 
         <div className="header-right">
@@ -117,16 +163,6 @@ export default function Header({ lang, toggleLang, t, onAdminClick, categories, 
               🔐 Admin
             </button>
           )}
-          <button
-            className="lang-toggle"
-            onClick={toggleLang}
-            title={t('language')}
-            aria-label={t('language')}
-          >
-            <span className={`lang-option ${lang === 'en' ? 'active' : ''}`}>EN</span>
-            <span className="lang-divider">|</span>
-            <span className={`lang-option ${lang === 'mr' ? 'active' : ''}`}>मराठी</span>
-          </button>
           {/* Hamburger — visible only on mobile */}
           <button
             className={`hamburger-btn ${menuOpen ? 'open' : ''}`}
@@ -150,23 +186,25 @@ export default function Header({ lang, toggleLang, t, onAdminClick, categories, 
         onTouchEnd={handleTouchEnd}
       >
         <div className="mobile-menu-header">
-          <span className="mobile-menu-title">{t('home')}</span>
+          <a href="/" className="mobile-menu-brand" onClick={(e) => { e.preventDefault(); closeMenu(); setTimeout(goHome, 100); }}>
+            {t('brandName')}<span className="brand-name-mr"> | {t('brandNameMr')}</span>
+          </a>
           <button className="mobile-menu-close" onClick={closeMenu}>✕</button>
         </div>
 
         <nav className="mobile-menu-nav">
-          <a href="/" className="mobile-menu-item" onClick={closeMenu}>
+          <button className="mobile-menu-item" type="button" onClick={() => { closeMenu(); setTimeout(goHome, 100); }}>
             <span className="mobile-menu-icon">🏠</span>
             <span>{t('home')}</span>
-          </a>
-          <a href="/#products" className="mobile-menu-item" onClick={closeMenu}>
+          </button>
+          <button className="mobile-menu-item" type="button" onClick={() => { closeMenu(); setTimeout(goToProducts, 100); }}>
             <span className="mobile-menu-icon">📦</span>
             <span>{t('products')}</span>
-          </a>
-          <a href="#footer-contact" className="mobile-menu-item" onClick={(e) => { e.preventDefault(); closeMenu(); setTimeout(() => scrollToFooter(), 200) }}>
+          </button>
+          <button className="mobile-menu-item" type="button" onClick={() => { closeMenu(); setTimeout(() => { lenisRef?.current?.start(); scrollToFooter(); }, 100); }}>
             <span className="mobile-menu-icon">📞</span>
             <span>{t('contact')}</span>
-          </a>
+          </button>
         </nav>
 
         <div className="mobile-menu-categories">
@@ -178,7 +216,7 @@ export default function Header({ lang, toggleLang, t, onAdminClick, categories, 
                 className="mobile-menu-cat-item"
                 onClick={() => { setCategory?.(cat); closeMenu(); }}
               >
-                {cat}
+                {CATEGORY_MAP[cat]?.mr || cat}
               </button>
             ))}
           </div>

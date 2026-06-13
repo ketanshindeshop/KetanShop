@@ -1,7 +1,34 @@
+/**
+ * English → Marathi lookup for all known category names stored in the database.
+ * Categories are stored in English; this map translates them for Marathi display.
+ */
+export const CATEGORY_MAP = {
+  // Current categories used in the store
+  'Groceries': { en: 'Groceries', mr: 'किराणा' },
+  'Sweets & Snacks': { en: 'Sweets & Snacks', mr: 'गोडे व स्नॅक्स' },
+  'Spices': { en: 'Spices', mr: 'मसाले' },
+  'Grains & Rice': { en: 'Grains & Rice', mr: 'धान्य व तांदूळ' },
+  'Pickles & Chutneys': { en: 'Pickles & Chutneys', mr: 'लोणची व चटण्या' },
+  'Beverages': { en: 'Beverages', mr: 'पेये' },
+
+  // Future / expansion categories (translations ready when needed)
+  'Oils & Ghee': { en: 'Oils & Ghee', mr: 'तेल व तूप' },
+  'Dairy': { en: 'Dairy', mr: 'दुग्धजन्य पदार्थ' },
+  'Dry Fruits': { en: 'Dry Fruits', mr: 'सुकामेवा' },
+  'Snacks': { en: 'Snacks', mr: 'स्नॅक्स' },
+  'Frozen Foods': { en: 'Frozen Foods', mr: 'गोठवलेले पदार्थ' },
+  'Personal Care': { en: 'Personal Care', mr: 'वैयक्तिक काळजी' },
+  'Household': { en: 'Household', mr: 'घरगुती वस्तू' },
+  'Baby Care': { en: 'Baby Care', mr: 'बाळ काळजी' },
+  'Puja Items': { en: 'Puja Items', mr: 'पूजा साहित्य' },
+  'Organic': { en: 'Organic', mr: 'सेंद्रिय' },
+}
+
 const translations = {
   en: {
     // Header
     brandName: 'Shriram Traders',
+    brandNameMr: 'श्रीराम ट्रेडर्स',
     tagline: 'Fresh Indian Groceries Delivered to Your Doorstep',
     home: 'Home',
     products: 'Products',
@@ -53,6 +80,7 @@ const translations = {
 
     // Price
     currency: '₹',
+    mrp: 'MRP',
 
     // Load More
     loadMore: 'Load More',
@@ -63,6 +91,7 @@ const translations = {
   mr: {
     // Header
     brandName: 'Shriram Traders',
+    brandNameMr: 'श्रीराम ट्रेडर्स',
     tagline: 'ताजे भारतीय किराणा तुमच्या दारापर्यंत',
     home: 'मुख्यपृष्ठ',
     products: 'उत्पादने',
@@ -122,6 +151,7 @@ const translations = {
 
     // Price
     currency: '₹',
+    mrp: 'MRP',
 
     // Load More
     loadMore: 'अधिक लोड करा',

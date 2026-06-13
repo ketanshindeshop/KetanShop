@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import AdminDashboard from './AdminDashboard'
 import ImportExcel from './ImportExcel'
 import './admin.css'
+import translations from '../translations'
 
 const ADMIN_SECRET = import.meta.env.VITE_ADMIN_SECRET || 'admin123'
 
@@ -76,7 +77,7 @@ export default function AdminPage({ onBackToSite }) {
     <div className="admin-page">
       <header className="admin-header">
         <div className="admin-header-inner">
-          <h1 className="admin-title">🛒 Shriram Traders — Admin</h1>
+          <h1 className="admin-title">🛒 Shriram Traders <span className="admin-title-mr">| {translations.mr.brandNameMr}</span> — Admin</h1>
           <nav className="admin-nav">
             <button
               className={`admin-nav-btn ${tab === 'products' ? 'active' : ''}`}

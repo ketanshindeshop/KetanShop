@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import ProductForm from './ProductForm'
+import { CATEGORY_MAP } from '../translations'
 
 export default function AdminDashboard({ secret, refreshKey, onRefresh }) {
   const [products, setProducts] = useState([])
@@ -114,7 +115,7 @@ export default function AdminDashboard({ secret, refreshKey, onRefresh }) {
                     <td className="admin-name-cell">
                       <span className="admin-name-mr">{p.product_name_mr || '—'}</span>
                     </td>
-                    <td><span className="admin-cat-tag">{p.category}</span></td>
+                    <td><span className="admin-cat-tag">{CATEGORY_MAP[p.category]?.en || p.category}</span></td>
                     <td>₹{Number(p.price).toLocaleString('en-IN')}</td>
                     <td>
                       <span className={`admin-stock ${p.availability === 'yes' ? 'in-stock' : p.availability === 'no' ? 'out-stock' : 'disabled'}`}>

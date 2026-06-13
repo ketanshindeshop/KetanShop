@@ -87,6 +87,11 @@ a {
   opacity: 0.85;
 }
 
+.brand-name-mr {
+  font-weight: 700;
+  opacity: 0.85;
+}
+
 .header-logo {
   height: 40px;
   width: auto;
@@ -622,16 +627,15 @@ a {
 .product-image-placeholder {
   position: absolute;
   inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   pointer-events: none;
-  transition: opacity 0.25s ease;
+  background: linear-gradient(90deg, var(--border-light) 25%, var(--border) 50%, var(--border-light) 75%);
+  background-size: 200px 100%;
+  animation: shimmer 1.2s ease-in-out infinite;
+  transition: opacity 0.3s ease;
 }
 
-.product-emoji {
-  font-size: 3.5rem;
-  opacity: 0.6;
+.product-image-placeholder.loaded {
+  opacity: 0;
 }
 
 .out-of-stock-badge {
@@ -675,6 +679,13 @@ a {
   font-size: 1.3rem;
   font-weight: 700;
   color: var(--primary);
+}
+
+.mrp-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  vertical-align: super;
 }
 
 .stock-badge {
@@ -892,6 +903,11 @@ a {
   color: #fff;
 }
 
+.footer-logo-text-mr {
+  font-weight: 700;
+  opacity: 0.85;
+}
+
 .footer-tagline {
   color: rgba(255, 255, 255, 0.85);
   font-size: 0.85rem;
@@ -995,6 +1011,23 @@ a {
   background: var(--bg);
 }
 
+.footer-credit {
+  margin-top: 6px;
+  font-size: 0.85rem;
+}
+
+.footer-credit a {
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: none;
+  transition: opacity var(--transition);
+}
+
+.footer-credit a:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
 /* ───────────── Hamburger Menu ───────────── */
 .hamburger-btn {
   display: none;
@@ -1095,6 +1128,20 @@ a {
   font-size: 1.1rem;
   font-weight: 700;
   color: var(--primary);
+}
+
+.mobile-menu-brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.mobile-menu-brand:hover {
+  opacity: 0.85;
 }
 
 .mobile-menu-close {
@@ -1321,30 +1368,198 @@ a {
   }
 }
 
-@media (max-width: 600px) {
-  .header-inner {
-    height: 60px;
+@media (max-width: 768px) {
+  .container {
+    padding: 0 16px;
   }
 
-  .brand-name {
+  .product-info {
+    padding: 12px;
+  }
+
+  .product-name {
+    font-size: 0.85rem;
+    margin-bottom: 6px;
+  }
+
+  .product-price {
     font-size: 1.1rem;
   }
 
+  .product-price-row {
+    margin-bottom: 6px;
+  }
+
+  .stock-badge {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+  }
+
+  .out-of-stock-badge {
+    font-size: 0.65rem;
+    padding: 3px 8px;
+    top: 6px;
+    right: 6px;
+  }
+
+  .footer-brand-section {
+    padding: 24px 0;
+  }
+
+  .footer-logo-text {
+    font-size: 1.1rem;
+  }
+
+  .footer-card {
+    padding: 14px 16px;
+  }
+
+  .footer-card-links a {
+    font-size: 0.9rem;
+  }
+
+  .footer-bottom {
+    padding: 12px 0;
+    font-size: 0.75rem;
+  }
+
+  .search-input {
+    padding: 12px 40px 12px 44px;
+    font-size: 0.95rem;
+  }
+
+  .sort-select {
+    min-height: 40px;
+  }
+
+  .clear-filters-bar-btn {
+    padding: 8px 16px;
+    min-height: 40px;
+  }
+
+  .mobile-menu-item {
+    padding: 16px 20px;
+  }
+
+  .mobile-menu-cat-item {
+    padding: 12px 12px;
+  }
+}
+
+@media (max-width: 600px) {
+  .header-inner {
+    height: 56px;
+  }
+
+  .brand-link {
+    font-size: 1rem;
+    gap: 6px;
+  }
+
+  .header-logo {
+    height: 32px;
+  }
+
+  .admin-nav-link {
+    padding: 6px 10px;
+    font-size: 0.75rem;
+    margin-right: 4px;
+  }
+
   .search-bar {
-    flex-direction: column;
+    margin-bottom: 16px;
   }
 
   .product-grid {
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    gap: 10px;
   }
 
   .products-toolbar {
     flex-direction: column;
     gap: 10px;
     align-items: flex-start;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
   }
 
+  .products-count {
+    font-size: 0.85rem;
+  }
+
+  .sort-control {
+    font-size: 0.8rem;
+    width: 100%;
+  }
+
+  .sort-select {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.8rem;
+  }
+
+  .main-content {
+    padding: 20px 0 40px;
+    min-height: calc(100vh - 56px - 200px);
+  }
+
+  .hamburger-btn {
+    width: 40px;
+    height: 40px;
+    margin-left: 6px;
+  }
+
+  .skeleton-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .mobile-menu {
+    width: 280px;
+  }
+}
+
+@media (max-width: 400px) {
+  .container {
+    padding: 0 12px;
+  }
+
+  .product-grid {
+    gap: 8px;
+  }
+
+  .product-info {
+    padding: 10px;
+  }
+
+  .product-name {
+    font-size: 0.78rem;
+    -webkit-line-clamp: 2;
+  }
+
+  .product-price {
+    font-size: 1rem;
+  }
+
+  .mrp-label {
+    font-size: 0.6rem;
+  }
+
+  .brand-link {
+    font-size: 0.85rem;
+  }
+
+  .brand-name-mr {
+    display: inline; /* allow wrapping if needed */
+  }
+
+  .footer-logo-text {
+    font-size: 1rem;
+  }
+
+  .mobile-menu {
+    width: 260px;
+  }
 }
 
 /* ── Desktop: side-by-side footer cards ── */

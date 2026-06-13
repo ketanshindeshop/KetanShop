@@ -539,7 +539,7 @@ The `src/utils/transliterate.js` module provides an English-to-Marathi (Devanaga
 ### Tier 1: FALLBACK_MAP (built-in, ~100 entries)
 Covers common product words and phrases that need semantic translation rather than phonetic transliteration (e.g., `"turmeric powder"` → `"हळद पूड"`, `"cow ghee"` → `"गायीचे तूप"`). Loaded instantly — no async import needed.
 
-### Tier 2: WORD_MAP (auto-generated, 158,553 entries)
+### Tier 2: WORD_MAP (auto-generated, 158,592 entries)
 A comprehensive lookup table generated from the training dataset via `scripts/build-word-map.js`. Includes exact English→Marathi pairs for grocery products, UI text, spices, customer service phrases, and business terms. Dynamically imported (not bundled) to keep the frontend JS small.
 
 ### Tier 3: Rule-based engine (fallback)
@@ -547,13 +547,14 @@ Unknown words are transliterated character-by-character using consonant and vowe
 
 ### Training Data
 
-The transliterator is trained on a dataset of 158,553 English→Marathi pairs from multiple domains:
+The transliterator is trained on a dataset of 158,592 English→Marathi pairs from multiple domains:
 - **UI & Website text** (10K pairs)
 - **Grocery product names** (10K pairs)
 - **Spices & Masalas** (10K pairs)
 - **Customer service phrases** (10K pairs)
 - **Business & SEO terms** (10K pairs)
 - **5x Shriram Training Parts** (50K pairs)
+- **English_Marathi_Grocery_Training_Data.txt** (39 new grocery phrase pairs)
 - **Original base dataset** (98K pairs)
 
 ### Adding Training Data

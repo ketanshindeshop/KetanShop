@@ -115,6 +115,11 @@
   white-space: nowrap;
 }
 
+.admin-title-mr {
+  font-weight: 700;
+  opacity: 0.85;
+}
+
 .admin-nav {
   display: flex;
   align-items: center;

@@ -73,7 +73,7 @@
 |---------|---------|
 | **English / Marathi Toggle** | Switch between EN and मराठी at the top of every page |
 | **Persistent Preference** | Language choice saved to `localStorage` |
-| **Marathi Transliteration** | English product names → Devanagari script via 3-tier engine (158K-entry lookup + fallback map + phonetic rules) |
+| **Marathi Transliteration** | English product names → Devanagari script via 3-tier engine (158K-entry lookup + fallback map + phonetic rules). Trained on 158,592 pairs including grocery phrases (Buy Rice, Premium Rice, Fresh Rice, Wholesale Rice + 7 base products × 4 prefixes). |
 | **Database Override** | If `product_name_mr` is stored in DB, it takes priority over transliteration |
 | **Marathi Numerals** | Prices and counts auto-convert to Marathi digits (०-९) |
 | **Training Data Merge** | Tab-separated .txt files in public/ merged into dataset via `node scripts/merge-training-data.js` |

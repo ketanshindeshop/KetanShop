@@ -7,10 +7,21 @@ export function useLenis() {
   return useContext(LenisContext)
 }
 
+/** Detect touch-capable devices where native scrolling is preferred */
+function isTouchDevice() {
+  return 'ontouchstart' in window || navigator.maxTouchPoints > 0
+}
+
 export default function LenisSmoothScroll({ children }) {
   const leniRef = useRef(null)
 
   useEffect(() => {
+    // Skip Lenis on touch devices — native momentum scrolling is smoother
+    if (isTouchDevice()) {
+      document.documentElement.style.overflowY = 'auto'
+      return
+    }
+
     const lenis = new Lenis({
       lerp: 0.08,
       wheelMultiplier: 1,

@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "server": "node server/index.js",
     "dev:all": "concurrently \"npm run server\" \"npm run dev\"",
-    "seed": "node server/seed.js"
+    "recompress": "node scripts/recompress-images.js",
+    "build:full": "npm run recompress && npm run build"
   },
   "dependencies": {
     "@libsql/client": "^0.14.0",

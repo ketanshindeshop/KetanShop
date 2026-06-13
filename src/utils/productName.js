@@ -14,3 +14,5 @@ export function cleanProductName(name) {
   cleaned = cleaned.replace(/\s+/g, ' ').trim();
   return cleaned;
 }
+
+

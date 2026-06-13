@@ -129,6 +129,9 @@ export default function ImportExcel({ secret, onImported }) {
 
           <h3>2. Select Excel File</h3>
           <p>Upload an Excel file with columns: <code>Product_Name</code>, <code>Price</code>, <code>Category</code>, <code>Sort_Order</code>.</p>
+          <p className="admin-form-hint" style={{ marginTop: '6px' }}>
+            💡 <code>Product_Name</code> can be in English <em>or</em> Marathi (Devanagari). The system auto-detects and translates if needed.
+          </p>
 
           <div className="admin-import-upload">
             <input
@@ -243,7 +246,7 @@ export default function ImportExcel({ secret, onImported }) {
               </tr>
             </thead>
             <tbody>
-              <tr><td><code>Product_Name</code></td><td>✅ Yes</td><td>Product name in English</td></tr>
+              <tr><td><code>Product_Name</code></td><td>✅ Yes</td><td>Product name in English or Marathi (auto-detected)</td></tr>
               <tr><td><code>Price</code></td><td>✅ Yes</td><td>Product price (number)</td></tr>
               <tr><td><code>Category</code></td><td>Optional</td><td>Category name (if omitted, guessed from product name)</td></tr>
               <tr><td><code>Sort_Order</code></td><td>Optional</td><td>Display order (lower = first)</td></tr>

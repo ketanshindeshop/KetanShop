@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { toMarathi } from '../utils/transliterate'
+import { CATEGORY_MAP } from '../translations'
 
 function DebouncedPriceInput({ value, onChange, label, placeholder, currency, id }) {
   const [local, setLocal] = useState(value)
@@ -84,7 +84,7 @@ export default function FilterSidebar({
               className={`category-item ${selectedCategory === cat ? 'active' : ''}`}
               onClick={() => setCategory(cat)}
             >
-              {toMarathi(cat, lang)}
+              {CATEGORY_MAP[cat]?.[lang] || cat}
             </button>
           ))}
         </div>

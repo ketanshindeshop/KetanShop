@@ -164,8 +164,14 @@ app.get('/api/products', async (req, res) => {
     const total = Number(countResult.rows[0]?.cnt || 0);
     const totalPages = Math.ceil(total / limitNum);
 
-    // Fetch a page of products (no image_data — images loaded separately via /api/products/:id/image)
-    const sql = `SELECT id, product_name, product_name_mr, price, category, availability, sort_order, created_at, updated_at FROM products ${where} ORDER BY ${safeSort} ${safeDir} LIMIT ? OFFSET ?`;
+    // Fetch a page of products.
+    // For public requests, include image_data so the client can render instantly
+    // via blob URLs instead of a waterfall of 20+ individual image HTTP requests.
+    // For admin requests (show_all=true), skip image_data to keep the payload lean.
+    const selectCols = isAdminRequest
+      ? 'id, product_name, product_name_mr, price, category, availability, sort_order, created_at, updated_at'
+      : 'id, product_name, product_name_mr, price, image_data, image_type, category, availability, sort_order, created_at, updated_at';
+    const sql = `SELECT ${selectCols} FROM products ${where} ORDER BY ${safeSort} ${safeDir} LIMIT ? OFFSET ?`;
     const result = await query(sql, [...params, limitNum, offset]);
 
     // For categories, show all categories when admin fetches all
@@ -259,8 +265,13 @@ app.post('/api/admin/products', requireAdmin, async (req, res) => {
     if (!product_name) {
       return res.status(400).json({ success: false, error: 'Product name is required' });
     }
-    // Use admin-provided Marathi name, or auto-generate from English name
-    const finalProductNameMr = (product_name_mr && product_name_mr.trim()) ? product_name_mr.trim() : (toMarathi(product_name, 'mr') || '');
+    // Smart language detection: if the name is in Devanagari, it's already Marathi.
+    // If it's in Latin script, auto-transliterate to Marathi.
+    const isMarathi = /[\u0900-\u097F]/.test(product_name);
+    const productNameEn = isMarathi ? (product_name_mr || product_name).trim() : product_name.trim();
+    const finalProductNameMr = isMarathi
+      ? product_name.trim()
+      : (product_name_mr && product_name_mr.trim()) ? product_name_mr.trim() : (toMarathi(product_name, 'mr') || '');
     // Compress uploaded image if provided
     let compressedData = null;
     let compressedType = null;
@@ -275,7 +286,7 @@ app.post('/api/admin/products', requireAdmin, async (req, res) => {
       sql: `INSERT INTO products (product_name, product_name_mr, price, category, image_path, image_data, image_type, availability, sort_order)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
-        product_name, finalProductNameMr, Number(price) || 0,
+        productNameEn, finalProductNameMr, Number(price) || 0,
         category || 'Groceries', image_path || '', compressedData || image_data || null, compressedType || image_type || null,
         availability || 'yes', Number(sort_order) || 0,
       ],
@@ -299,16 +310,24 @@ app.put('/api/admin/products/:id', requireAdmin, async (req, res) => {
     if (product_name !== undefined) {
       updates.push('product_name = ?');
       values.push(product_name);
-    }
-    // Determine Marathi name: explicit value > auto-generate from English > unchanged
-    if (product_name_mr !== undefined && product_name_mr !== '') {
-      // Admin explicitly provided a Marathi name
+    }      // Smart language detection for product name
+    if (product_name !== undefined) {
+      const isMarathi = /[\u0900-\u097F]/.test(product_name);
+      if (isMarathi) {
+        // Name is already in Marathi — use it directly
+        if (product_name_mr === undefined || product_name_mr === '') {
+          updates.push('product_name_mr = ?');
+          values.push(product_name.trim());
+        }
+      } else if (product_name_mr === undefined || product_name_mr === '') {
+        // Name is in English — auto-generate Marathi
+        updates.push('product_name_mr = ?');
+        values.push(toMarathi(product_name, 'mr') || '');
+      }
+    } else if (product_name_mr !== undefined && product_name_mr !== '') {
+      // Only Marathi name provided
       updates.push('product_name_mr = ?');
-      values.push(product_name_mr);
-    } else if (product_name !== undefined) {
-      // Product name changed but no Marathi name given — auto-generate
-      updates.push('product_name_mr = ?');
-      values.push(toMarathi(product_name, 'mr') || '');
+      values.push(product_name_mr.trim());
     }
     if (price !== undefined) { updates.push('price = ?'); values.push(Number(price)); }
     if (category !== undefined) { updates.push('category = ?'); values.push(category); }
@@ -460,12 +479,18 @@ app.post('/api/admin/products/import-excel', requireAdmin, upload.fields([
         }
       }
 
-      const productNameMr = toMarathi(productName, 'mr') || '';
+      // Smart language detection: check if product name is already in Marathi
+      const isMarathi = /[\u0900-\u097F]/.test(productName);
+      const productNameEn = isMarathi ? productName : productName;
+      const productNameMr = isMarathi
+        ? productName.trim()
+        : (toMarathi(productName, 'mr') || '');
+
       await db.execute({
         sql: `INSERT INTO products (product_name, product_name_mr, price, category, image_path, image_data, image_type, availability, sort_order)
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
-          productName, productNameMr, price,
+          productNameEn, productNameMr, price,
           category, imagePath, imageData, imageType, 'yes', Number(row.Sort_Order) || 0,
         ],
       });

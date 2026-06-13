@@ -1,4 +1,4 @@
-const MAX_DIMENSION = 600;
+const MAX_DIMENSION = 400;
 const WEBP_QUALITY = 85;
 
 // Cache the sharp import so we only attempt to load it once
@@ -26,11 +26,12 @@ async function getSharp() {
 }
 
 /**
- * Compress an image buffer: resize to max 600px (maintaining aspect ratio)
+ * Compress an image buffer: resize to max 400px (maintaining aspect ratio)
  * and convert to WebP format.
  *
- * 600px covers both desktop 2x Retina (~560px needed for a 280px card)
- * and mobile 3x Retina (~540px needed for a 180px card) with crisp results.
+ * 400px covers desktop 2x Retina (~360px needed for a 180px card)
+ * and mobile 3x Retina (~300px needed for a 100px card) with crisp results.
+ * Smaller images mean faster first load when embedded in the API response.
  *
  * If sharp is not available (serverless environments), returns the original
  * buffer unchanged with an 'image/jpeg' mime type.

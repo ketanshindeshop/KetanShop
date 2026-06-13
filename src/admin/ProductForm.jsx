@@ -5,7 +5,6 @@ export default function ProductForm({ product, secret, onSaved, onCancel }) {
   const fileInputRef = useRef(null)
   const [form, setForm] = useState({
     product_name: product?.product_name || '',
-    product_name_mr: product?.product_name_mr || '',
     price: product?.price || '',
     category: product?.category || 'Groceries',
     image_path: product?.image_path || '',
@@ -108,25 +107,18 @@ export default function ProductForm({ product, secret, onSaved, onCancel }) {
 
         <form onSubmit={handleSubmit} className="admin-form">
           <div className="admin-form-row">
-            <div className="admin-form-group">
-              <label>Product Name (English) *</label>
+            <div className="admin-form-group admin-form-group-full">
+              <label>Product Name *</label>
               <input
                 type="text"
                 value={form.product_name}
                 onChange={(e) => handleChange('product_name', e.target.value)}
-                placeholder="e.g. Kashmiri Garlic Black"
+                placeholder="Enter name in English or मराठी (auto-detected)"
                 required
               />
-            </div>
-            <div className="admin-form-group">
-              <label>Product Name (Marathi)</label>
-              <input
-                type="text"
-                value={form.product_name_mr}
-                onChange={(e) => handleChange('product_name_mr', e.target.value)}
-                placeholder="Auto-generated from English name"
-              />
-              <p className="admin-form-hint">Auto-generated from English name. Edit to override.</p>
+              <p className="admin-form-hint">
+                Enter in English (auto-translates to Marathi) or directly in Marathi (Devanagari).
+              </p>
             </div>
           </div>
 
