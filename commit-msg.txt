@@ -1,8 +1,7 @@
-fix: smart CDN caching — serve instantly from cache, revalidate in background
+docs: update README and features with smart CDN caching, realtime admin, and 4 products
 
-- Public API: s-maxage=0 + stale-while-revalidate=86400
-  → CDN caches response, always serves from cache (instant)
-  → Revalidates in background on every request
-  → Admin edits → next revalidation picks up fresh data
-- vercel.json: removed API caching headers (server controls them now)
-  Kept immutable asset caching for Vite-built files
+- Updated CDN caching description: s-maxage=0 + stale-while-revalidate pattern
+- Added Realtime Admin feature description
+- Fixed duplicate sections in README (SVG Placeholder, Fallback, Excel Import)
+- Updated product count from 56 to 4
+- Updated performance optimizations table

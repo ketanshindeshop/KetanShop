@@ -31,8 +31,9 @@
 | **Image Fallback** | Products without images show a 🛍️ placeholder |
 | **Inline Images (Page 1)** | First 20 product images embedded as `data:` URIs in JSON response — zero extra HTTP requests, instant render |
 | **Hybrid Lazy Loading** | Page 1 = inline images; pages 2+ = lazy `/api/products/:id/image` endpoint to keep payload lean |
-| **Vercel CDN Edge Cache** | API response cached at edge for 1 hour (`s-maxage=3600`) with `stale-while-revalidate=86400` — sub-ms for returning visitors |
-| **Image CDN Cache** | Individual images cached at Vercel edge for 7 days (`s-maxage=604800`) |
+| **Vercel CDN Edge Cache** | Public API: `s-maxage=0, stale-while-revalidate=86400` — serves cached instantly, revalidates in background. Admin edits propagate on next revalidation. |
+| **Realtime Admin** | Admin API bypasses all caching — `no-cache, no-store, must-revalidate`, in-memory cache skipped, `_=Date.now()` cache-buster on fetch. |
+| **Image CDN Cache** | Individual images cached at Vercel edge for 7 days (`s-maxage=604800`) with `?v=updated_at` cache busting |
 | **Immutable Asset Caching** | Vite-built assets with `max-age=31536000, immutable` |
 | **Client-Side Compression** | Images compressed in-browser via Canvas API (400px WebP, 70% quality) before upload — works on Vercel |
 | **SVG Placeholder Generation** | Products created without images get auto-generated SVG placeholders with gradient background + product name — no null image_data |

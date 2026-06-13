@@ -36,7 +36,8 @@ An Indian grocery e-commerce website built with **React + Vite** (frontend) and 
 | **DB Client** | `@libsql/client` |
 | **Excel** | `xlsx` (SheetJS) |
 | **Image Storage** | Stored as base64 WebP in DB — page 1 served inline for instant render, lazy pages served via `/api/products/:id/image` endpoint |
-| **Image Cache** | Vercel CDN edge cache (`s-maxage=3600` + `stale-while-revalidate`) for API responses; 7-day CDN cache for individual images |
+| **API Cache** | Vercel CDN with `s-maxage=0, stale-while-revalidate=86400` — serves cached instantly, revalidates in background. Admin edits propagate on next revalidation. Admin requests always bypass cache. |
+| **Image Cache** | 7-day CDN cache with `?v=updated_at` cache busting |
 | **Client Compression** | Canvas API — 400px WebP at 70% quality, runs in-browser before upload (works on Vercel where sharp is unavailable) |
 | **File Upload** | `multer` (Excel import, memory storage) |
 | **Language** | English + Marathi (bilingual UI) |
@@ -183,9 +184,10 @@ npm run dev:all
 | **📦 Image Compression** | Images resized to 400px max, converted to WebP at 70% quality via Sharp (server) or Canvas API (client) |
 | **⚡ Inline Images (Page 1)** | First page product images embedded as `data:` URIs in JSON response — load instantly, zero extra requests |
 | **⚡ Hybrid Lazy Loading** | Page 1 has inline images for instant render; infinite-scroll pages use lazy `/api/products/:id/image` endpoint to keep payload lean |
-| **⚡ Vercel CDN Edge Cache** | API responses cached at edge for 1 hour (`s-maxage=3600`) with `stale-while-revalidate=86400` — sub-ms response for returning visitors globally |
-| **⚡ Image CDN Cache** | Individual images cached at Vercel edge for 7 days (`s-maxage=604800`) |
+| **⚡ Smart CDN Cache** | Public API: `s-maxage=0, stale-while-revalidate=86400` — serves cached instantly, revalidates in background. Admin edits propagate on next revalidation. Admin API always bypasses cache. |
+| **⚡ Image CDN Cache** | Individual images cached at Vercel edge for 7 days (`s-maxage=604800`) with `?v=updated_at` cache busting |
 | **⚡ Immutable Asset Caching** | Vite-built assets served with `max-age=31536000, immutable` |
+| **⚡ Realtime Admin** | Admin API always returns fresh data — no caching, in-memory cache bypassed, `_=Date.now()` cache-buster on fetch |
 | **⚡ Client-Side Compression** | Images compressed in-browser via Canvas API before upload — eliminates serverless sharp dependency on Vercel |
 | **⚡ Image Size Display** | Admin dashboard shows per-product image sizes; edit form shows original → compressed size with % savings |
 | **🔄 Smooth Scrolling** | Lenis-powered smooth scroll for polished UX |
@@ -359,10 +361,11 @@ Images use a **hybrid approach:**
 - **Admin requests** (`show_all=true`): Always skip image data to keep the admin dashboard table fast.
 
 **CDN Edge Caching (Vercel):**
-- Product list API responses are cached at Vercel's global edge CDN for **1 hour** (`s-maxage=3600`) with **`stale-while-revalidate=86400`** — stale cached responses are served instantly while revalidating in background
-- Individual product images are cached at the edge for **7 days** (`s-maxage=604800`)
-- Vite-built assets (with content hashes) are cached with **`max-age=31536000, immutable`**
-- Result: returning visitors get sub-millisecond responses from the nearest edge location, with no serverless function invocation
+- **Public API:** `Cache-Control: public, s-maxage=0, stale-while-revalidate=86400` — CDN caches the response and serves it instantly to users while revalidating in the background. After an admin edit, the CDN cache updates on the next revalidation cycle (~200ms). Cache stays fresh until the next admin edit.
+- **Admin API:** Always bypasses all caching (`no-cache, no-store, must-revalidate`) — admins see realtime data.
+- **Individual images:** Cached at the edge for **7 days** (`s-maxage=604800`) with `?v=updated_at` cache busting — image URLs change after edits, so the CDN always fetches fresh images.
+- **Vite-built assets:** Served with `max-age=31536000, immutable` (content-hashed filenames).
+- **Result:** Returning visitors get sub-millisecond responses from the nearest edge, with latest data propagating within one revalidation after admin edits.
 
 **Server-side (local development):**
 - On startup, `warmupImageCache()` loads all images into an in-memory buffer cache
@@ -436,24 +439,6 @@ Product: "Kashmiri Garlic Black"
 ```
 
 Supported formats: `.jpeg`, `.jpg`, `.png`, `.gif`, `.webp`. All converted to WebP.
-
-### Fallback
-
-If no image is stored or loading fails, a placeholder emoji (🛍️) is displayed.
-
----
-
-## 📥 Excel Import
-
-### Excel Format
-
-- Gradient background (12 color palettes, selected by hash of product name)
-- Product name displayed prominently in white
-- "Shriram Traders" subtitle
-- 400×400px, pure SVG — no external dependencies
-- Stored in the database just like a regular image
-
-This ensures every product always has an image — no broken image placeholders or empty cards.
 
 ### Fallback
 
@@ -572,8 +557,9 @@ The following optimizations are in place:
 |-------------|----------|--------|
 | **Inline Images (Page 1)** | `server/app.js`, `ProductCard.jsx` | First-page product images embedded as `data:` URIs in JSON response — zero extra HTTP requests, instant render. |
 | **Hybrid Lazy Loading** | `server/app.js`, `ProductCard.jsx` | Page 1 = inline images; pages 2+ = lazy `/api/products/:id/image` endpoint. Keeps infinite-scroll payloads lean. |
-| **Vercel CDN Edge Cache** | `server/app.js`, `vercel.json` | API responses cached at edge for 1 hour (`s-maxage=3600`) with `stale-while-revalidate=86400`. Returning visitors get sub-ms responses globally. |
-| **Image CDN Cache** | `server/app.js`, `vercel.json` | Individual images cached at Vercel edge for 7 days (`s-maxage=604800`). |
+| **Smart CDN Cache** | `server/app.js` | Public API: `s-maxage=0, stale-while-revalidate=86400` — CDN caches response, serves instantly, revalidates in background. Admin edits propagate on next revalidation. |
+| **Realtime Admin** | `server/app.js`, `AdminDashboard.jsx` | Admin API skips CDN cache, in-memory cache, and adds `_=Date.now()` cache-buster. Always returns fresh data. |
+| **Image CDN Cache** | `server/app.js` | Individual images cached at Vercel edge for 7 days (`s-maxage=604800`) with `?v=updated_at` cache busting. |
 | **Immutable Asset Caching** | `vercel.json` | Vite-built assets served with `max-age=31536000, immutable`. |
 | **Client-Side Compression** | `src/utils/clientCompress.js`, `ProductForm.jsx`, `ImportExcel.jsx` | Canvas API resizes to 400px, converts to WebP at 70% quality — works on Vercel where Sharp is unavailable. |
 | **SVG Placeholder Generation** | `server/generatePlaceholder.js` | Products created without images get auto-generated SVG placeholders with gradient background + product name — no null image_data. |
@@ -635,20 +621,14 @@ node scripts/build-word-map.js
 
 ---
 
-## 📦 Current Products (56 total)
+## 📦 Current Products (4 total)
 
-The store includes a diverse catalog spanning 6 categories:
-
-| Category | Count | Sample Products | Price Range |
-|----------|-------|----------------|-------------|
-| **Spices** | 22 | Haldi, Jeera, Garam Masala, Hing, Kesar, Elaichi | ₹55 – ₹800 |
-| **Grains & Rice** | 15 | Basmati Rice, Toor Dal, Atta, Besan, Poha | ₹45 – ₹220 |
-| **Sweets & Snacks** | 7 | Chikki, Til Ladoo, Besan Ladoo, Chakli, Bhakarwadi | ₹50 – ₹180 |
-| **Pickles & Chutneys** | 6 | Mango Pickle, Lemon Pickle, Garlic Pickle | ₹80 – ₹150 |
-| **Oils & Ghee** | 5 | Cow Ghee, Mustard Oil, Coconut Oil | ₹180 – ₹550 |
-| **Beverages** | 1 | Masala Chai (Spiced Tea) | ₹250 |
-
-> Products are seeded from `KetanShop.xlsx` via `npm run seed`. Images are stored in the database and compressed to WebP format.
+| ID | Product | Price | Category |
+|----|---------|-------|----------|
+| 1 | Moong Papad | ₹41 | Groceries |
+| 2 | Masoor Dal | ₹77 | Groceries |
+| 3 | आंब्याचे लोणचे | ₹98 | Groceries |
+| 4 | Shengadanyachi_Chikki | ₹67 | Snacks |
 
 ---
 
