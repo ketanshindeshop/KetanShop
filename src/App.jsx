@@ -228,6 +228,9 @@ function MainShop() {
                 handleSortChange={handleSortChange}
                 hasActiveFilters={hasActiveFilters}
                 loadMore={loadMore}
+                categories={categories}
+                selectedCategory={category}
+                setCategory={setCategory}
               />
             </section>
           </div>

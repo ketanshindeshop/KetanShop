@@ -34,6 +34,7 @@ const ProductCard = memo(function ProductCard({ product, lang, t }) {
             className={`product-image${imgLoaded ? ' loaded' : ''}`}
             src={imageSrc}
             alt={name}
+            loading="lazy"
             onLoad={() => setImgLoaded(true)}
             onError={() => setImgError(true)}
           />

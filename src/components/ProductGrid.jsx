@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react'
 import ProductCard from './ProductCard'
 import { toMarathiNumerals } from '../utils/format'
+import { CATEGORY_MAP } from '../translations'
 
 const SKELETON_COUNT = 8
 
@@ -30,6 +31,9 @@ export default function ProductGrid({
   handleSortChange,
   hasActiveFilters,
   loadMore,
+  categories,
+  selectedCategory,
+  setCategory,
 }) {
   const sentinelRef = useRef(null)
 
@@ -88,6 +92,24 @@ export default function ProductGrid({
             <option value="price-asc">{t('sortPriceLow')}</option>
             <option value="price-desc">{t('sortPriceHigh')}</option>
             <option value="name">{t('sortName')}</option>
+          </select>
+        </div>
+
+        {/* Category dropdown — visible only on mobile (alongside sort) */}
+        <div className="mobile-category-control">
+          <label htmlFor="mobile-category">{t('category')}:</label>
+          <select
+            id="mobile-category"
+            className="sort-select"
+            value={selectedCategory}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            <option value="all">{t('allCategories')}</option>
+            {categories.map((cat) => (
+              <option key={cat} value={cat}>
+                {CATEGORY_MAP[cat]?.[lang] || cat}
+              </option>
+            ))}
           </select>
         </div>
       </div>

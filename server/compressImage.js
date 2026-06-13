@@ -36,6 +36,9 @@ async function getSharp() {
  * If sharp is not available (serverless environments), returns the original
  * buffer unchanged with an 'image/jpeg' mime type.
  *
+ * Retries up to 2 more times on failure (max 3 total attempts) with a
+ * short delay between attempts to handle transient issues.
+ *
  * @param {Buffer} inputBuffer - Raw image data (JPEG, PNG, GIF, WebP, etc.)
  * @returns {Promise<{ buffer: Buffer, mime: string }>} Compressed WebP buffer (or original)
  */
@@ -46,15 +49,34 @@ export async function compressImage(inputBuffer) {
     return { buffer: inputBuffer, mime: 'image/jpeg' };
   }
 
-  const outputBuffer = await sharp(inputBuffer)
-    .resize({
-      width: MAX_DIMENSION,
-      height: MAX_DIMENSION,
-      fit: 'inside',             // maintain aspect ratio, no cropping
-      withoutEnlargement: true,  // don't upscale small images
-    })
-    .webp({ quality: WEBP_QUALITY })
-    .toBuffer();
+  const MAX_ATTEMPTS = 3;
+  let lastError = null;
 
-  return { buffer: outputBuffer, mime: 'image/webp' };
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const outputBuffer = await sharp(inputBuffer)
+        .resize({
+          width: MAX_DIMENSION,
+          height: MAX_DIMENSION,
+          fit: 'inside',             // maintain aspect ratio, no cropping
+          withoutEnlargement: true,  // don't upscale small images
+        })
+        .webp({ quality: WEBP_QUALITY })
+        .toBuffer();
+
+      // Success — return the compressed result
+      return { buffer: outputBuffer, mime: 'image/webp' };
+    } catch (err) {
+      lastError = err;
+      if (attempt < MAX_ATTEMPTS) {
+        console.warn(`⚠️  Compression attempt ${attempt}/${MAX_ATTEMPTS} failed, retrying... (${err.message})`);
+        // Wait a short moment before retrying (50ms, 100ms, ...)
+        await new Promise((resolve) => setTimeout(resolve, attempt * 50));
+      }
+    }
+  }
+
+  // All attempts failed — log and return original buffer as fallback
+  console.error(`❌ Compression failed after ${MAX_ATTEMPTS} attempts: ${lastError.message}`);
+  return { buffer: inputBuffer, mime: 'image/jpeg' };
 }
