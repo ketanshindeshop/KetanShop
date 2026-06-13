@@ -220,6 +220,23 @@ export default function Header({ t, onAdminClick, categories, setCategory, minPr
           </button>
         </nav>
 
+        {/* Contact info — visible in mobile menu */}
+        <div className="mobile-menu-contact">
+          <h4 className="mobile-menu-section-title">{t('contactUs')}</h4>
+          <div className="mobile-menu-contact-body">
+            <div className="mobile-menu-contact-row">
+              <span className="mobile-menu-contact-icon">👤</span>
+              <span className="mobile-menu-contact-label">{t('owner')}:</span>
+              <span className="mobile-menu-contact-value">{t('ownerName')}</span>
+            </div>
+            <a href="tel:+917387513192" className="mobile-menu-contact-row mobile-menu-contact-link">
+              <span className="mobile-menu-contact-icon">📞</span>
+              <span className="mobile-menu-contact-label">{t('phone')}:</span>
+              <span className="mobile-menu-contact-value mobile-menu-contact-phone">7387513192</span>
+            </a>
+          </div>
+        </div>
+
         <div className="mobile-menu-categories">
           <h4 className="mobile-menu-section-title">{t('category')}</h4>
           <div className="mobile-menu-cat-list">
