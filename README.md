@@ -77,6 +77,7 @@ ShriramTraders/
 │   ├── app.js                    # Express API — all public + admin endpoints
 │   ├── index.js                  # Server entry point
 │   ├── compressImage.js          # Sharp-based image compression (600px WebP)
+│   ├── generatePlaceholder.js    # SVG placeholder generator (no deps, gradient backgrounds)
 │   └── seed.js                   # Reads KetanShop.xlsx → seeds Turso DB
 │
 ├── src/
@@ -409,6 +410,18 @@ User selects image → Canvas API resizes to 400px → converts to WebP at 70% �
 
 This eliminates the dependency on server-side Sharp for Vercel deployments.
 
+### SVG Placeholder Generation
+
+When a product is created without an image (via admin form or Excel import), an **SVG placeholder** is automatically generated:
+
+- Gradient background (12 color palettes, selected by hash of product name)
+- Product name displayed prominently in white
+- "Shriram Traders" subtitle
+- 400×400px, pure SVG — no external dependencies
+- Stored in the database just like a regular image
+
+This ensures every product always has an image — no broken image placeholders or empty cards.
+
 ### Image Size Display
 
 - **Product Edit page:** Shows current image size, and original → compressed size comparison when selecting a new image
@@ -423,6 +436,24 @@ Product: "Kashmiri Garlic Black"
 ```
 
 Supported formats: `.jpeg`, `.jpg`, `.png`, `.gif`, `.webp`. All converted to WebP.
+
+### Fallback
+
+If no image is stored or loading fails, a placeholder emoji (🛍️) is displayed.
+
+---
+
+## 📥 Excel Import
+
+### Excel Format
+
+- Gradient background (12 color palettes, selected by hash of product name)
+- Product name displayed prominently in white
+- "Shriram Traders" subtitle
+- 400×400px, pure SVG — no external dependencies
+- Stored in the database just like a regular image
+
+This ensures every product always has an image — no broken image placeholders or empty cards.
 
 ### Fallback
 
@@ -455,6 +486,8 @@ If no image is stored or loading fails, a placeholder emoji (🛍️) is display
 7. Click **Import Products** — system auto-categorizes (if no category provided), matches images by filename, and stores them in the database
 
 > **Image matching:** Image filenames are matched case-insensitively to product slugs. E.g., `kashmiri_garlic_black.jpeg` matches product "Kashmiri Garlic Black". Supported formats: JPEG, PNG, GIF, WebP. Max 10 MB per file. Images are automatically compressed and converted to WebP via Sharp.
+>
+> **Products without images:** When you click **Import**, if some products have no matching image, a confirmation dialog appears: *"5 out of 20 products have no matching image. Auto-generated placeholder images will be used instead."* After confirming, the server automatically generates SVG placeholder images with the product name displayed on a gradient background. The import result shows how many products got placeholders.
 
 ### Import via Command Line
 
@@ -543,6 +576,8 @@ The following optimizations are in place:
 | **Image CDN Cache** | `server/app.js`, `vercel.json` | Individual images cached at Vercel edge for 7 days (`s-maxage=604800`). |
 | **Immutable Asset Caching** | `vercel.json` | Vite-built assets served with `max-age=31536000, immutable`. |
 | **Client-Side Compression** | `src/utils/clientCompress.js`, `ProductForm.jsx`, `ImportExcel.jsx` | Canvas API resizes to 400px, converts to WebP at 70% quality — works on Vercel where Sharp is unavailable. |
+| **SVG Placeholder Generation** | `server/generatePlaceholder.js` | Products created without images get auto-generated SVG placeholders with gradient background + product name — no null image_data. |
+| **Pre-Import Image Confirmation** | `ImportExcel.jsx` | Parses Excel client-side to count rows; shows confirm dialog before import if some products lack images. |
 | **Server Image Compression** | `server/compressImage.js` | Sharp resizes to 400px max, converts to WebP at 70% quality. Appleid during seed, import, and product CRUD (local only). |
 | **Image Size Display** | `AdminDashboard.jsx`, `ProductForm.jsx`, `admin.css` | Admin dashboard shows per-product image sizes; edit form shows original → compressed size. |
 | **Accurate MIME Fallback** | `server/compressImage.js` | `detectMimeFromBuffer()` detects actual image format from magic bytes when Sharp is unavailable — client-compressed WebP keeps correct type. |

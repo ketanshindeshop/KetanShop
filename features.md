@@ -35,6 +35,8 @@
 | **Image CDN Cache** | Individual images cached at Vercel edge for 7 days (`s-maxage=604800`) |
 | **Immutable Asset Caching** | Vite-built assets with `max-age=31536000, immutable` |
 | **Client-Side Compression** | Images compressed in-browser via Canvas API (400px WebP, 70% quality) before upload — works on Vercel |
+| **SVG Placeholder Generation** | Products created without images get auto-generated SVG placeholders with gradient background + product name — no null image_data |
+| **Pre-Import Image Confirmation** | ImportExcel.jsx parses Excel client-side and shows confirm dialog if some products lack images |
 | **Accurate MIME Fallback** | `detectMimeFromBuffer()` detects actual format from magic bytes when Sharp unavailable |
 | **Image Size Display** | Admin dashboard shows per-product image sizes; edit form shows original → compressed size |
 | **Placeholder Overlay** | Emoji placeholder overlays image area, fades out smoothly on load |
@@ -52,9 +54,9 @@
 | **Product CRUD** | Full Create, Read, Update, Delete with modal forms |
 | **Availability Control** | Three states per product — **In Stock**, **Out of Stock**, **Disabled** |
 | **Visual Badges** | Green (In Stock), Red (Out of Stock), Gray (Disabled) in the admin table |
-| **Excel Import** | Bulk upload via `.xlsx` with auto-categorization and image matching |
+| **Excel Import** | Bulk upload via `.xlsx` with auto-categorization, image matching, and SVG placeholder generation for products without images |
 | **Sample Download** | One-click download of template Excel file |
-| **Image Upload** | File picker with preview, stores directly in DB as base64 |
+| **Image Upload** | File picker with preview, stores directly in DB as base64; auto-generates SVG placeholder if no image provided |
 | **Auto-Marathi Names** | Marathi product names auto-generated from English via transliteration |
 | **Session Persistence** | Admin login stored in `sessionStorage` (persists across page refreshes) |
 

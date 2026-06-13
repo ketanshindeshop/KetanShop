@@ -1,8 +1,1 @@
-fix: missing brace in import-excel endpoint, add placeholders to admin form
-
-- Fixed critical bug: missing closing brace in import-excel endpoint caused
-  the else block to never close — db.execute was trapped inside the else,
-  so products WITH uploaded images skipped the insert entirely
-- POST /api/admin/products now also generates SVG placeholders when no
-  image_data is provided (all creation paths now auto-generate images)
-- Both fixes ensure every product always has an image (no more null image_data)
+docs: update README and features with SVG placeholder generation and pre-import confirmation
