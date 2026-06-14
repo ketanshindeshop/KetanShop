@@ -36,7 +36,7 @@ An Indian grocery e-commerce website built with **React + Vite** (frontend) and 
 | **DB Client** | `@libsql/client` |
 | **Excel** | `xlsx` (SheetJS) |
 | **Image Storage** | Stored as base64 WebP in DB — page 1 served inline for instant render, lazy pages served via `/api/products/:id/image` endpoint |
-| **API Cache** | Vercel CDN with `s-maxage=0, stale-while-revalidate=86400` — serves cached instantly, revalidates in background. Admin edits propagate on next revalidation. Admin requests always bypass cache. |
+| **API Cache** | Vercel CDN with `s-maxage=31536000, stale-while-revalidate=31536000` — cached at edge for **1 year**. Tagged with `Vercel-Cache-Tag: products` for instant purge via `invalidateByTag()` when admin edits. After purge, next request re-caches for another 1 year. Admin requests always bypass cache. |
 | **Image Cache** | 7-day CDN cache with `?v=updated_at` cache busting |
 | **Client Compression** | Canvas API — 400px WebP at 70% quality, runs in-browser before upload (works on Vercel where sharp is unavailable) |
 | **File Upload** | `multer` (Excel import, memory storage) |
@@ -184,7 +184,7 @@ npm run dev:all
 | **📦 Image Compression** | Images resized to 400px max, converted to WebP at 70% quality via Sharp (server) or Canvas API (client) |
 | **⚡ Inline Images (Page 1)** | First page product images embedded as `data:` URIs in JSON response — load instantly, zero extra requests |
 | **⚡ Hybrid Lazy Loading** | Page 1 has inline images for instant render; infinite-scroll pages use lazy `/api/products/:id/image` endpoint to keep payload lean |
-| **⚡ Smart CDN Cache** | Public API: `s-maxage=0, stale-while-revalidate=86400` — serves cached instantly, revalidates in background. Admin edits propagate on next revalidation. Admin API always bypasses cache. |
+| **⚡ Smart CDN Cache** | Public API: `s-maxage=31536000, stale-while-revalidate=31536000` — cached at Vercel edge for **1 year**. Tagged with `Vercel-Cache-Tag: products`. Admin edits purge the edge cache via `invalidateByTag('products')`, next visitor gets fresh data, re-cached for 1 year. Admin API always bypasses cache. |
 | **⚡ Image CDN Cache** | Individual images cached at Vercel edge for 7 days (`s-maxage=604800`) with `?v=updated_at` cache busting |
 | **⚡ Immutable Asset Caching** | Vite-built assets served with `max-age=31536000, immutable` |
 | **⚡ Realtime Admin** | Admin API always returns fresh data — no caching, in-memory cache bypassed, `_=Date.now()` cache-buster on fetch |
@@ -361,11 +361,12 @@ Images use a **hybrid approach:**
 - **Admin requests** (`show_all=true`): Always skip image data to keep the admin dashboard table fast.
 
 **CDN Edge Caching (Vercel):**
-- **Public API:** `Cache-Control: public, s-maxage=0, stale-while-revalidate=86400` — CDN caches the response and serves it instantly to users while revalidating in the background. After an admin edit, the CDN cache updates on the next revalidation cycle (~200ms). Cache stays fresh until the next admin edit.
+- **Public API:** `Cache-Control: public, s-maxage=31536000, stale-while-revalidate=31536000` — cached at Vercel edge for **1 year**. Response tagged with `Vercel-Cache-Tag: products` for programmatic invalidation.
+- **Cache Purge on Admin Edit:** When admin creates/updates/deletes a product, `invalidateCache()` calls `invalidateByTag('products')` from `@vercel/functions` to instantly purge the Vercel edge cache. Next visitor gets fresh data from origin, which is then re-cached for 1 year.
 - **Admin API:** Always bypasses all caching (`no-cache, no-store, must-revalidate`) — admins see realtime data.
-- **Individual images:** Cached at the edge for **7 days** (`s-maxage=604800`) with `?v=updated_at` cache busting — image URLs change after edits, so the CDN always fetches fresh images.
+- **Individual images:** Cached at the edge for **7 days** (`s-maxage=604800`) with `?v=updated_at` cache busting. Also tagged with `Vercel-Cache-Tag: products` so admin edits purge image caches too.
 - **Vite-built assets:** Served with `max-age=31536000, immutable` (content-hashed filenames).
-- **Result:** Returning visitors get sub-millisecond responses from the nearest edge, with latest data propagating within one revalidation after admin edits.
+- **Result:** Returning visitors get sub-millisecond responses from the nearest edge. After admin edits, the edge cache is purged instantly via tag invalidation, and the next visitor triggers a fresh cache.
 
 **Server-side (local development):**
 - On startup, `warmupImageCache()` loads all images into an in-memory buffer cache
@@ -557,7 +558,7 @@ The following optimizations are in place:
 |-------------|----------|--------|
 | **Inline Images (Page 1)** | `server/app.js`, `ProductCard.jsx` | First-page product images embedded as `data:` URIs in JSON response — zero extra HTTP requests, instant render. |
 | **Hybrid Lazy Loading** | `server/app.js`, `ProductCard.jsx` | Page 1 = inline images; pages 2+ = lazy `/api/products/:id/image` endpoint. Keeps infinite-scroll payloads lean. |
-| **Smart CDN Cache** | `server/app.js` | Public API: `s-maxage=0, stale-while-revalidate=86400` — CDN caches response, serves instantly, revalidates in background. Admin edits propagate on next revalidation. |
+| **Smart CDN Cache** | `server/app.js` | Public API: `s-maxage=31536000, stale-while-revalidate=31536000` with `Vercel-Cache-Tag: products`. Cached at edge for 1 year. Admin edits purge via `invalidateByTag('products')`. |
 | **Realtime Admin** | `server/app.js`, `AdminDashboard.jsx` | Admin API skips CDN cache, in-memory cache, and adds `_=Date.now()` cache-buster. Always returns fresh data. |
 | **Image CDN Cache** | `server/app.js` | Individual images cached at Vercel edge for 7 days (`s-maxage=604800`) with `?v=updated_at` cache busting. |
 | **Immutable Asset Caching** | `vercel.json` | Vite-built assets served with `max-age=31536000, immutable`. |
