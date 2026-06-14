@@ -1,7 +1,0 @@
-docs: update README and features with smart CDN caching, realtime admin, and 4 products
-
-- Updated CDN caching description: s-maxage=0 + stale-while-revalidate pattern
-- Added Realtime Admin feature description
-- Fixed duplicate sections in README (SVG Placeholder, Fallback, Excel Import)
-- Updated product count from 56 to 4
-- Updated performance optimizations table

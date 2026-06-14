@@ -8,6 +8,7 @@ import { query, getDb, imageToBase64, MIME_MAP, ALLOWED_IMAGE_EXTS } from './db.
 import { compressImage } from './compressImage.js';
 import { generatePlaceholder } from './generatePlaceholder.js';
 import { toMarathi, getWordMap } from '../src/utils/transliterate.js';
+import { invalidateByTag } from '@vercel/functions';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const upload = multer({
@@ -88,11 +89,17 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-/** Clear all in-memory caches so fresh data is served after any change */
+/** Clear all in-memory caches + purge Vercel edge cache so fresh data is served after any change */
 function invalidateCache() {
   productListCache.clear();
   imageCache.clear();
   imageCacheTime.clear();
+  // Purge Vercel CDN edge cache for tagged responses (products, product images).
+  // This ensures the next visitor gets fresh data from origin, which then gets
+  // recached at the edge for another long period.
+  invalidateByTag('products').catch(err =>
+    console.warn('⚠️  Failed to purge Vercel edge cache:', err.message)
+  );
 }
 
 /* ─────── PUBLIC API ─────── */
@@ -207,12 +214,13 @@ app.get('/api/products', async (req, res) => {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     } else {
       setProductListCache(cacheKey, response);
-      // Vercel CDN caches the response and serves it instantly (stale-while-revalidate).
-      // s-maxage=0 means the cache is immediately considered stale, so the CDN ALWAYS
-      // revalidates in the background. The cached version is served while revalidating.
-      // When admin edits → invalidateCache() clears server cache → next revalidation
-      // gets fresh data → CDN updated. Users always see latest data within 1 request.
-      res.setHeader('Cache-Control', 'public, s-maxage=0, stale-while-revalidate=86400');
+      // Vercel CDN caches the response at the edge for 1 year (s-maxage=31536000).
+      // stale-while-revalidate keeps serving the cached response while revalidating
+      // in the background for up to 1 year after expiry.
+      // When admin edits → invalidateCache() → invalidateByTag('products') purges
+      // the Vercel edge cache → next request hits origin → fresh data recached.
+      res.setHeader('Cache-Control', 'public, s-maxage=31536000, stale-while-revalidate=31536000');
+      res.setHeader('Vercel-Cache-Tag', 'products');
     }
     res.json(response);
   } catch (error) {
@@ -238,6 +246,10 @@ app.get('/api/products/:id', async (req, res) => {
 app.get('/api/products/:id/image', async (req, res) => {
   try {
     const productId = req.params.id;
+
+    // Tag image responses so admin edits (product update/delete) purge the edge cache
+    // via invalidateByTag('products') in invalidateCache().
+    res.setHeader('Vercel-Cache-Tag', 'products');
 
     // Check in-memory cache first
     const cached = getCachedImage(productId);
