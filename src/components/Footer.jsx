@@ -10,6 +10,13 @@ export default function Footer({ t }) {
             <span className="footer-logo-text">{t('brandName')}<span className="footer-logo-text-mr"> | {t('brandNameMr')}</span></span>
           </div>
           <p className="footer-tagline">{t('footerTagline')}</p>
+          <div className="footer-location-row">
+            <span className="footer-location-icon">📍</span>
+            <span className="footer-location-text">
+              <strong>{t('location')}:</strong>{' '}
+              {t('locationAddress')}
+            </span>
+          </div>
         </div>
       </div>
 

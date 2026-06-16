@@ -76,6 +76,8 @@ const translations = {
     owner: 'Owner',
     ownerName: 'Ketan Shinde',
     phone: 'Phone',
+    location: 'Location',
+    locationAddress: 'MIDC, Mirjole, Ratnagiri, Maharashtra 415639',
     allRightsReserved: 'All rights reserved.',
 
     // Price
@@ -147,6 +149,8 @@ const translations = {
     owner: 'मालक',
     ownerName: 'केतन शिंदे',
     phone: 'फोन',
+    location: 'पत्ता',
+    locationAddress: 'एमआयडीसी, मिरजोळे, रत्नागिरी, महाराष्ट्र 415639',
     allRightsReserved: 'सर्व हक्क राखीव.',
 
     // Price

@@ -216,6 +216,14 @@ function MainShop() {
             </aside>
 
             <section className="products-section" id="products-section">
+              <div className="products-banner">
+                <img
+                  src="/Banner.png"
+                  alt="KetanShop - प्रामाणिक भारतीय किराणा"
+                  className="products-banner-img"
+                  loading="eager"
+                />
+              </div>
               <ProductGrid
                 products={products}
                 loading={loading}
