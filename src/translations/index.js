@@ -69,7 +69,6 @@ const translations = {
     language: 'Language',
 
     // Footer
-    footerTagline: 'Your trusted source for authentic Indian groceries.',
     agencyLabel: 'Agencies',
     agencyName: 'Sadguru Traders | Vasant foods bevrages | K.k.manufacturng &trading',
     followUs: 'Follow Us',
@@ -144,7 +143,6 @@ const translations = {
     language: 'भाषा',
 
     // Footer
-    footerTagline: 'प्रामाणिक भारतीय किराणा मालासाठी तुमचा विश्वासू स्रोत.',
     agencyLabel: 'एजन्सी',
     agencyName: 'सद्गुरू ट्रेडर्स | वसंत फूड्स बेव्हरेजेस | के.के. मॅन्युफॅक्चरिंग अँड ट्रेडिंग',
     followUs: 'आमचे अनुसरण करा',
