@@ -27,7 +27,7 @@ function AppLoader() {
       <div className="app-loader-ring" />
       <img
         className="app-loader-logo"
-        src="/ShriRamTradersLogo.png"
+        src="/shriram%20LOGO.png"
         alt="Shriram Traders"
       />
       <p className="app-loader-text">

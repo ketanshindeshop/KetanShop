@@ -6,10 +6,11 @@ export default function Footer({ t }) {
       <div className="footer-brand-section">
         <div className="container">
           <div className="footer-brand-section-inner">
-            <img src="/ShriRamTradersLogo.png" alt="Shriram Traders" className="footer-logo-img" />
+            <img src="/shriram%20LOGO.png" alt="Shriram Traders" className="footer-logo-img" />
             <span className="footer-logo-text">{t('brandName')}<span className="footer-logo-text-mr"> | {t('brandNameMr')}</span></span>
           </div>
           <p className="footer-tagline">{t('footerTagline')}</p>
+          <p className="footer-agency">🤝 <strong>{t('agencyLabel')}:</strong> {t('agencyName')}</p>
           <div className="footer-location-row">
             <span className="footer-location-icon">📍</span>
             <span className="footer-location-text">

@@ -70,6 +70,8 @@ const translations = {
 
     // Footer
     footerTagline: 'Your trusted source for authentic Indian groceries.',
+    agencyLabel: 'Agencies',
+    agencyName: 'Sadguru Traders | Vasant foods bevrages | K.k.manufacturng &trading',
     followUs: 'Follow Us',
     quickLinks: 'Quick Links',
     contactUs: 'Contact Us',
@@ -77,7 +79,7 @@ const translations = {
     ownerName: 'Ketan Shinde',
     phone: 'Phone',
     location: 'Location',
-    locationAddress: 'MIDC, Mirjole, Ratnagiri, Maharashtra 415639',
+    locationAddress: 'C-114 MIDC, Mirjole, Ratnagiri, Maharashtra 415639',
     allRightsReserved: 'All rights reserved.',
 
     // Price
@@ -143,6 +145,8 @@ const translations = {
 
     // Footer
     footerTagline: 'प्रामाणिक भारतीय किराणा मालासाठी तुमचा विश्वासू स्रोत.',
+    agencyLabel: 'एजन्सी',
+    agencyName: 'सद्गुरू ट्रेडर्स | वसंत फूड्स बेव्हरेजेस | के.के. मॅन्युफॅक्चरिंग अँड ट्रेडिंग',
     followUs: 'आमचे अनुसरण करा',
     quickLinks: 'Quick Links',
     contactUs: 'आमच्याशी संपर्क साधा',
@@ -150,7 +154,7 @@ const translations = {
     ownerName: 'केतन शिंदे',
     phone: 'फोन',
     location: 'पत्ता',
-    locationAddress: 'एमआयडीसी, मिरजोळे, रत्नागिरी, महाराष्ट्र 415639',
+    locationAddress: 'सी-११४ एमआयडीसी, मिरजोळे, रत्नागिरी, महाराष्ट्र 415639',
     allRightsReserved: 'सर्व हक्क राखीव.',
 
     // Price

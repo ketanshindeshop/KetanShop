@@ -146,7 +146,7 @@ export default function Header({ t, onAdminClick, categories, setCategory, minPr
       <div className="container header-inner">
         <div className="brand">
           <a href="/" className="brand-link" onClick={(e) => { e.preventDefault(); window.location.href = '/' }}>
-            <img src="/ShriRamTradersLogo.png" alt="Shriram Traders" className="header-logo" />
+            <img src="/shriram%20LOGO.png" alt="Shriram Traders" className="header-logo" />
             <span className="brand-name">
               <span className="brand-name-en">{t('brandName')}</span>
               <span className="brand-name-sep"> | </span>

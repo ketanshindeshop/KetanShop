@@ -1093,6 +1093,15 @@ a {
   margin-top: 4px;
 }
 
+.footer-agency {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  margin-top: 10px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
 .footer-location-row {
   display: flex;
   align-items: center;
